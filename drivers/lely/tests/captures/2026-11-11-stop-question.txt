@@ -1,0 +1,19 @@
+# Real robot, 2026-11-11, firmware screen after Start/Stop on the driving screen (route A).
+# Captured from the real robot (read-only after the one Start/Stop; the question was not answered).
+# Soft keys: Ja = soft1 (left), Pauze = soft2 (middle), Nee = soft3 (right); 'HAND' sits in a box above Pauze.
+# Also seen tonight (text only, via cli.py): 'HANDM. LADER / 13.5 V / 0.1 A / L R' (manual charger screen).
+===== question after stop =====
+text y=3 x=25 'ROUTE GESTOPT'
+text y=16 x=4 'Route stop gezet:'
+text y=24 x=4 'route afmaken?'
+text y=42 x=52 'HAND'
+text y=54 x=15 'Ja'
+text y=54 x=49 'Pauze'
+text y=54 x=97 'Nee'
+box y=0 x=0 h=12 w=127
+box y=0 x=0 h=63 w=127
+box y=39 x=42 h=12 w=43
+box y=51 x=0 h=12 w=42
+box y=51 x=42 h=12 w=43
+box y=51 x=85 h=12 w=42
+raw: 03010400884c0120 032100000c7f0120 032100003f7f0120 031e0319004c0120 031f524f55544520 031f474553544f50 031f540000000000 031e100400450120 031f526f75746520 031f73746f702067 031f657a65743a0d 031f726f75746520 031f61666d616b65 031f6e3f00000000 032133000c2a0320 0321272a0c2b0120 0321332a0c2b0320 032133550c2a0120 031e360f007d0320 031f4a6100000000 031e2a3400000000 031f48414e440000 031e363100600320 031f5061757a6500 031e366100710320 031f4e6565000000

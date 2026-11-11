@@ -1,0 +1,21 @@
+// Android target of the shared module. Groovy, and only applied when an Android SDK is
+// present, so the rest builds without the Android Gradle plugin. The core's .so comes from
+// the app (androidApp builds core/jni with the NDK).
+apply plugin: 'com.android.kotlin.multiplatform.library'
+
+kotlin {
+  androidLibrary {
+    namespace = 'nl.eschouten.scraper.shared'
+    compileSdk { version = release(37) { minorApiLevel = 0 } }
+    minSdk = 24
+  }
+  sourceSets {
+    androidMain {
+      kotlin.srcDir('src/jniMain/kotlin')
+      dependencies {
+        // BLUETOOTH_SCAN / CONNECT (and the older ones) in the manifest
+        implementation 'com.juul.kable:kable-default-permissions:0.45.0'
+      }
+    }
+  }
+}

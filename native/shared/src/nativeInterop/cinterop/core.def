@@ -1,0 +1,4 @@
+headers = scraper_c.h
+package = nl.eschouten.scraper.core.c
+staticLibraries = libcore.a
+linkerOpts = -lc++

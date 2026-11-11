@@ -1,0 +1,40 @@
+name: build
+# Builds the M5Stack firmware on every push to main (the apps: workflow native).
+# Download it under Actions -> this run -> Artifacts.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  firmware:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the build number is the commit count
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-${{ hashFiles('firmware/platformio.ini') }}
+      - run: pip install platformio
+      - name: "Build M5Stack firmware (no PIN inside, the device asks for it)"
+        working-directory: firmware
+        run: |
+          cp include/config.example.h include/config.h
+          pio run -e m5stack-core
+      - uses: actions/upload-artifact@v4
+        with:
+          name: scraper-knop-firmware
+          path: |
+            firmware/.pio/build/m5stack-core/firmware.bin
+            firmware/.pio/build/m5stack-core/bootloader.bin
+            firmware/.pio/build/m5stack-core/partitions.bin

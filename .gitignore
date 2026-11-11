@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+build/
+dist/
+
+# Per-robot cache written at runtime (image version the robot reported)
+beeldversie.txt
+
+# Firmware: local config holds the PIN; PlatformIO build output
+firmware/include/config.h
+firmware/.pio/
+firmware/.vscode/
+
+# Never commit other apps or code decompiled from them
+decompiled-reference/
+*.apk
+*.apks
+*.xapk
+
+# Logs, scratch, archives
+*.log
+*.diff
+*.zip
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/
+
+# Build secrets (tools/secrets.py) and core libraries built on first use
+drivers/secrets.h
+python/scraper_control/libscraper_core.*
+python/scraper_control/scraper_core.dll
+
+# local build output (Android NDK, XcodeGen)
+native/androidApp/.cxx/
+native/iosApp/Widgets/Info.plist

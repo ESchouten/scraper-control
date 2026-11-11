@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- Bluetooth LE to the robot. Android 12+: scan + connect; older: legacy + location.
+       (Kable's default permissions add the same; listed here so it is clear.) -->
+  <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
+  <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+  <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+  <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+  <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30" />
+  <!-- a failed start from a home-screen widget is shown as a notification -->
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+  <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
+
+  <application
+      android:name=".ScraperApp"
+      android:label="Scraper Control"
+      android:icon="@mipmap/ic_launcher"
+      android:theme="@style/Theme.Scraper"
+      android:enableOnBackInvokedCallback="true">
+    <activity
+        android:name=".MainActivity"
+        android:exported="true"
+        android:launchMode="singleTop"
+        android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+        android:windowSoftInputMode="adjustResize">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
+      </intent-filter>
+    </activity>
+    <receiver android:name=".RoutesWidget" android:label="@string/widget_routes_label" android:exported="true">
+      <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+      <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_routes_info" />
+    </receiver>
+    <receiver android:name=".RouteTileWidget" android:label="@string/widget_tile_label" android:exported="true">
+      <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+      <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_tile_info" />
+    </receiver>
+    <receiver android:name=".WidgetTapReceiver" android:exported="false" />
+    <activity
+        android:name=".WidgetConfigureActivity"
+        android:exported="true"
+        android:excludeFromRecents="true"
+        android:theme="@style/Theme.Scraper.Dialog">
+      <intent-filter><action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" /></intent-filter>
+    </activity>
+  </application>
+</manifest>

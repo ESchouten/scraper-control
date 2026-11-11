@@ -1,0 +1,10 @@
+// Android target of the Compose UI (only with an Android SDK, see ../shared/android.gradle).
+apply plugin: 'com.android.kotlin.multiplatform.library'
+
+kotlin {
+  androidLibrary {
+    namespace = 'nl.eschouten.scraper.ui'
+    compileSdk { version = release(37) { minorApiLevel = 0 } }
+    minSdk = 24
+  }
+}

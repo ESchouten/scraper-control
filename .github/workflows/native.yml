@@ -1,0 +1,96 @@
+name: native
+# The native apps (native/): shared Kotlin module with the robot driver (C++), Compose UI for
+# Android and desktop, SwiftUI for iOS.
+on:
+  push:
+    paths: ["native/**", "core/**", "drivers/**", ".github/workflows/native.yml"]
+  pull_request:
+    paths: ["native/**", "core/**", "drivers/**"]
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * *" # iOS once a day, only if native/, core/ or drivers/ changed (macOS minutes count 10x)
+
+concurrency:
+  group: native-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  jvm-and-android:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the build number is the commit count
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install cryptography
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Both apps cover every shared scenario
+        run: python3 native/scenarios/check.py
+      - name: Shared tests (core via JNI) against the simulated robot
+        working-directory: native
+        run: ./gradlew :shared:jvmTest --console=plain
+      - name: Desktop app (Compose)
+        working-directory: native
+        run: ./gradlew :composeApp:packageUberJarForCurrentOS --console=plain
+      - name: Scenario tests on the Compose app (desktop, demo robot) + screenshots
+        working-directory: native
+        run: ./gradlew :composeApp:jvmTest --console=plain
+      - name: Android app (Compose, core via the NDK)
+        working-directory: native
+        run: ./gradlew :androidApp:assembleDebug --console=plain
+      - uses: actions/upload-artifact@v4
+        with:
+          name: scraper-control-native
+          path: |
+            native/androidApp/build/outputs/apk/debug/*.apk
+            native/composeApp/build/compose/jars/*.jar
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: compose-screenshots-and-reports
+          path: |
+            native/composeApp/build/screenshots/
+            native/composeApp/build/reports/tests/
+            native/shared/build/reports/tests/
+
+  ios:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Anything changed in the last day?
+        id: changed
+        run: |
+          if [ "${{ github.event_name }}" = schedule ] && [ -z "$(git log --since=25.hours --format=%h -- native core drivers)" ]; then
+            echo "run=no" >> "$GITHUB_OUTPUT"; else echo "run=yes" >> "$GITHUB_OUTPUT"; fi
+      - uses: actions/setup-java@v4
+        if: steps.changed.outputs.run == 'yes'
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        if: steps.changed.outputs.run == 'yes'
+      - name: iOS app (SwiftUI + Shared framework) and its scenario tests (XCUITest, demo robot)
+        if: steps.changed.outputs.run == 'yes'
+        working-directory: native/iosApp
+        run: |
+          brew install xcodegen
+          export IOS_DEVICE="$(xcrun simctl list devices available | grep -m1 -oE 'iPhone [0-9]+( Pro)?' )"
+          echo "simulator: $IOS_DEVICE"
+          SHOTS="$RUNNER_TEMP/ios-shots" WORK="$RUNNER_TEMP/ios" ./run-ui-tests.sh
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.changed.outputs.run == 'yes'
+        with:
+          name: ios-screenshots-and-log
+          path: |
+            ${{ runner.temp }}/ios-shots/
+            ${{ runner.temp }}/ios/test.log

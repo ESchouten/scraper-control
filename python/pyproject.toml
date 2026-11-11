@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scraper-control"
+version = "0.1.0"
+description = "Control a manure scraper robot over Bluetooth LE"
+requires-python = ">=3.9"
+dependencies = ["bleak>=0.22"]
+
+[tool.setuptools]
+packages = ["scraper_control"]
