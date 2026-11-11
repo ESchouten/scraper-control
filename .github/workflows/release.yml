@@ -10,7 +10,8 @@ name: release
 # firmware: that is why the apps are not released separately.
 #
 # Secrets:
-#   the drivers' build secrets   any secret a driver's code names; tools/secrets.py picks them
+#   BUILD_SECRETS                the secrets built into the apps and firmware: NAME=value lines,
+#                                the same as ~/.scraper-control/secrets (tools/secrets.py)
 #   FIRMWARE_SIGNING_KEY         ECDSA P-256 PEM; public half in firmware/src/ReleaseKey.h
 #   ANDROID_KEYSTORE             the app's signing keystore, base64 (same key for every version,
 #                                or Android refuses to install an update over the old app)
@@ -34,7 +35,7 @@ jobs:
       - run: pip install platformio cryptography
       - name: Build secrets
         env:
-          BUILD_SECRETS: ${{ toJSON(secrets) }}
+          BUILD_SECRETS: ${{ secrets.BUILD_SECRETS }}
         run: python3 tools/secrets.py --release
       - name: Build
         working-directory: firmware
@@ -73,7 +74,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Build secrets
         env:
-          BUILD_SECRETS: ${{ toJSON(secrets) }}
+          BUILD_SECRETS: ${{ secrets.BUILD_SECRETS }}
         run: python3 tools/secrets.py --release
       - name: Signing key
         env:
@@ -116,7 +117,7 @@ jobs:
       - name: Build secrets
         shell: bash
         env:
-          BUILD_SECRETS: ${{ toJSON(secrets) }}
+          BUILD_SECRETS: ${{ secrets.BUILD_SECRETS }}
         run: python3 tools/secrets.py --release
       - name: Build the installer (.dmg / .deb, with its own Java)
         working-directory: native

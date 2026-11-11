@@ -3,10 +3,11 @@
     python3 tools/secrets.py            # writes drivers/secrets.h (git-ignored)
     python3 tools/secrets.py --release  # the same, and fails when a required one is missing
 
-Reads $BUILD_SECRETS (NAME=value lines, or a JSON object such as the release workflow's
-toJSON(secrets)), else the file ~/.scraper-control/secrets (NAME=value lines). Only the names
-a driver declares in its code become a #define in drivers/secrets.h (and so end up in the
-apps and the firmware); every other secret, such as the release's signing keys, is ignored:
+Reads $BUILD_SECRETS (CI: the secret of that name), else the file ~/.scraper-control/secrets:
+NAME=value lines. Set the CI secret from that file:
+    gh secret set BUILD_SECRETS < ~/.scraper-control/secrets
+Only the names a driver declares in its code become a #define in drivers/secrets.h (and so
+end up in the apps and the firmware); every other name is ignored:
     // build secret: NAME            optional
     // required build secret: NAME   a release (--release) fails without it
 Drivers include drivers/secrets.h when it is there. Without it everything builds and the

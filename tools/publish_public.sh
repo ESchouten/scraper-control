@@ -47,5 +47,5 @@ a Python library, on one robot API with a driver per robot type."
 git remote add origin "$URL"
 git push -u origin main
 echo "Published to $URL (build numbers continue from $BASE)."
-echo "Next: set the secrets there (the drivers' build secrets, FIRMWARE_SIGNING_KEY, ANDROID_KEYSTORE, ANDROID_KEYSTORE_PASSWORD)"
+echo "Next: set the secrets there (BUILD_SECRETS, FIRMWARE_SIGNING_KEY, ANDROID_KEYSTORE, ANDROID_KEYSTORE_PASSWORD)"
 echo "and run Actions > release."
