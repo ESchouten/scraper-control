@@ -122,13 +122,16 @@ jobs:
       - name: Build the installer (.dmg / .deb, with its own Java)
         working-directory: native
         shell: bash
-        run: ./gradlew :composeApp:packageDistributionForCurrentOS --console=plain
+        run: |
+          ./gradlew :composeApp:packageDistributionForCurrentOS --console=plain
+          mkdir -p ../out
+          cp composeApp/build/compose/binaries/main/*/*.{dmg,deb} ../out/ 2>/dev/null || true
+          ls ../out/*
       - uses: actions/upload-artifact@v4
         with:
           name: desktop-${{ matrix.os }}
-          path: |
-            native/composeApp/build/compose/binaries/main/dmg/*.dmg
-            native/composeApp/build/compose/binaries/main/deb/*.deb
+          path: out/
+          if-no-files-found: error
 
   publish:
     needs: [firmware, android, desktop]
@@ -147,7 +150,7 @@ jobs:
         run: |
           VERSION=$(sed -n 's/^scraper.version=//p' native/gradle.properties)
           BUILD=$(( $(git rev-list --count HEAD) + $(sed -n 's/^scraper.buildBase=//p' native/gradle.properties || echo 0) ))
-          ls -la dist
+          ls -laR dist
           gh release create "v$VERSION-$BUILD" dist/* \
             --title "Scraper Control $VERSION ($BUILD)" \
             --notes "Scraper Control $VERSION, build $BUILD.
