@@ -76,11 +76,11 @@ static const Texts* tx = &kNl;     // screen language: the robot's, seen at the 
 static int owedPlanning = -1;
 static uint32_t owedAt = 0;
 static const uint32_t kOwedForMs = 6UL * 3600UL * 1000UL;
-// Screen: dim after a minute, off after ten; any press wakes it.
-// Idle: dimmed, never off (Erik 2026-11-11), so a press always acts at once (a stop too).
-static const uint8_t kBright = 160, kDim = 64;
+// Screen: dims after a minute without a press, never off (Erik 2026-11-11), so a press always
+// acts at once (a stop too). The backlight is far from linear: 64 still looked full, so dim low.
+static const uint8_t kBright = 160, kDim = 20;
 static uint32_t lastActive = 0;
-static int dimLevel = 0;   // 0 bright, 1 dim, 2 off
+static int dimLevel = 0;   // 0 bright, 1 dim
 
 // ---- look: same colours and shapes as the Scraper Control app (app/lib/theme.dart) ----
 namespace ui {
