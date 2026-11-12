@@ -440,10 +440,12 @@ class RobotController(
     val st = r.status()
     if (st.planning == true || (st.planning == false && !st.busy && link != LinkState.Working)) planningResumes = false
     if (st.planning != null) {
+      val before = settings.robot.snapshot
       settings.updateRobot {
         it.copy(snapshot = RobotSnapshot(now(), st.planning, st.nextRun, st.batteryMv, st.activity, st.busy))
       }
       save()
+      if (before?.planning != st.planning || before?.nextRide != st.nextRun) publish()   // the widgets show the schedule
     }
     emit()
   }

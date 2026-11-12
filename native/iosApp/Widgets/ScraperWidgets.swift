@@ -98,6 +98,10 @@ struct BarView: View {
         Mark()
         Text(entry.bar.title).font(.system(size: 14, weight: .bold)).lineLimit(1)
         Spacer(minLength: 8)
+        if let on = entry.bar.scheduleOn?.boolValue {
+          Circle().fill(on ? Color(red: 0x1B / 255, green: 0x7F / 255, blue: 0x3B / 255) : Color.secondary)
+            .frame(width: 6, height: 6)
+        }
         Text(entry.bar.status).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
       }
       HStack(spacing: 8) {

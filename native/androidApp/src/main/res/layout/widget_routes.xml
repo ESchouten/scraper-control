@@ -32,12 +32,23 @@
             android:textColor="@color/widget_text"
             android:textSize="14sp"
             android:textStyle="bold" />
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+        <ImageView
+            android:id="@+id/schedule_dot"
+            android:layout_width="6dp"
+            android:layout_height="6dp"
+            android:layout_marginStart="10dp"
+            android:layout_marginEnd="5dp"
+            android:src="@drawable/widget_dot_on"
+            android:visibility="gone"
+            android:importantForAccessibility="no" />
         <TextView
             android:id="@+id/status"
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="10dp"
-            android:layout_weight="1"
             android:ellipsize="end"
             android:gravity="end"
             android:maxLines="1"

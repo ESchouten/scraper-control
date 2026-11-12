@@ -1,11 +1,11 @@
 // The home-screen widgets (Android AppWidget, iOS WidgetKit) on the shared module: what they
 // show and what a tap does. The platform only draws [WidgetBar] / [WidgetTile] and calls [tap].
 //
-//   bar   routes A-D of one robot, plus its last result
+//   bar   routes A-D of one robot, plus its schedule (as last seen by the app) or last result
 //   tile  one route of one robot, plus its last result
 //
 // Kept in the app's store (iOS: the App Group, so the widget extension reads it too):
-//   w.robots          JSON [{uid, name, routes: [{l: "A", t: "Voergang"}]}]
+//   w.robots          JSON [{uid, name, routes: [{l: "A", t: "Voergang"}], planning, next}]
 //   w.active          uid of the robot chosen in the app (default for new widgets)
 //   w.status.<uid>    last result line for that robot ("07:18  Voergang gestart")
 //   w.route.<uid>.<A> last result for that route, short ("Gestart 07:18")
@@ -21,11 +21,20 @@ import nl.eschouten.scraper.ui.APP_NAME
 
 @Serializable data class WidgetRoute(val l: String, val t: String)
 
-@Serializable data class WidgetRobot(val uid: String, val name: String, val routes: List<WidgetRoute>)
+/** [planning] / [next]: the schedule as the app last saw it (null / "" = not known). */
+@Serializable data class WidgetRobot(
+  val uid: String,
+  val name: String,
+  val routes: List<WidgetRoute>,
+  val planning: Boolean? = null,
+  val next: String = "",
+)
 
 data class WidgetButton(val route: String, val title: String)
 
-data class WidgetBar(val title: String, val robotUid: String?, val routes: List<WidgetButton>, val status: String)
+/** [status]: the schedule when known, else the last result. [scheduleOn]: null when the
+ *  status line is not the schedule (no dot shown). */
+data class WidgetBar(val title: String, val robotUid: String?, val routes: List<WidgetButton>, val status: String, val scheduleOn: Boolean? = null)
 
 data class WidgetTile(val robotUid: String?, val route: String, val title: String, val detail: String)
 
@@ -52,7 +61,12 @@ object WidgetBridge {
   }
 
   fun publish(s: Settings, store: Store) {
-    val list = s.robots.map { r -> WidgetRobot(r.uid, r.displayName, r.visibleRoutes.map { WidgetRoute(it, r.routeTitle(it)) }) }
+    val list = s.robots.map { r ->
+      WidgetRobot(
+        r.uid, r.displayName, r.visibleRoutes.map { WidgetRoute(it, r.routeTitle(it)) },
+        r.snapshot?.planning, r.snapshot?.nextRide.orEmpty(),
+      )
+    }
     store.putString("w.robots", json.encodeToString(list))
     store.putString("w.active", s.robot.uid)
   }
@@ -75,11 +89,14 @@ object WidgetBridge {
 
   fun bar(store: Store, robotUid: String?): WidgetBar {
     val r = robot(store, robotUid)
+    val planning = r?.planning
     return WidgetBar(
       r?.name ?: APP_NAME,
       r?.uid,
       r?.routes?.map { WidgetButton(it.l, it.t) } ?: Settings.allRoutes.map { WidgetButton(it, "Route $it") },
-      r?.let { store.getString("w.status.${it.uid}") } ?: tr.tapRouteToStart,
+      if (planning != null) tr.widgetSchedule(planning, r.next)
+      else r?.let { store.getString("w.status.${it.uid}") } ?: tr.tapRouteToStart,
+      planning,
     )
   }
 

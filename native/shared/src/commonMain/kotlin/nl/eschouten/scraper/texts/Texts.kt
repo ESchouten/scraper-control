@@ -129,6 +129,11 @@ class Tr(val code: String) {
   val bluetoothOffShort: String get() = t("Bluetooth uit", "Bluetooth off")
   val tapRouteToStart: String get() = t("Tik op een route om te starten", "Tap a route to start it")
   val tapToStart: String get() = t("Tik om te starten", "Tap to start")
+  fun widgetSchedule(on: Boolean, next: String): String = when {
+    !on -> t("Planning uit", "Schedule off")
+    next.isEmpty() -> t("Planning aan", "Schedule on")
+    else -> t("Planning aan · volgende $next", "Schedule on · next $next")
+  }
   val setupFirst: String get() = t("Stel eerst de app in", "Set up the app first")
   val setupFirstBody: String get() = t(
     "Open Scraper Control en kies je robot. Daarna kun je de widget plaatsen.",

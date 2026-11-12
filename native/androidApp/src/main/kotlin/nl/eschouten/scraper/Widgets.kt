@@ -76,6 +76,9 @@ object WidgetViews {
           }
         }
         setTextViewText(R.id.status, b.status)
+        val on = b.scheduleOn
+        setViewVisibility(R.id.schedule_dot, if (on == null) View.GONE else View.VISIBLE)
+        if (on != null) setImageViewResource(R.id.schedule_dot, if (on) R.drawable.widget_dot_on else R.drawable.widget_dot_off)
         setOnClickPendingIntent(
           R.id.status,
           PendingIntent.getActivity(c, widgetId, Intent(c, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT),
