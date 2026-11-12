@@ -88,6 +88,15 @@ static bool haveSeen = false, syncing = false;
 
 static const uint8_t kBright = 160, kDim = 20;
 static const uint32_t kResultMs = 20000;   // a result closes by itself after this
+
+// Every hold action works the same (home, manual, PIN, password, wifi): it fires at once when
+// its button has been down ui::kHoldMs (`since` = when it went down, 0 = not down), while the
+// button is still held, with a short beep. Its hold key on screen is full at that moment.
+static bool holdFired(m5::Button_Class& b, uint32_t since) {
+  if (!since || !b.isPressed() || millis() - since < ui::kHoldMs) return false;
+  M5.Speaker.tone(1500, 60);
+  return true;
+}
 static uint32_t lastActive = 0;
 static int dimLevel = 0;   // 0 bright, 1 dim
 
@@ -317,8 +326,7 @@ static bool editPin(const String& why) {
     if (M5.BtnA.wasPressed()) { e.minus(); lastInput = millis(); drawPin(e, why); }
     if (M5.BtnC.wasPressed()) { e.plus(); lastInput = millis(); drawPin(e, why); }
     if (M5.BtnB.wasPressed()) { middleDown = millis(); lastInput = middleDown; }
-    bool cancel = millis() - lastInput > 60000 ||
-                  (middleDown && M5.BtnB.isPressed() && millis() - middleDown >= ui::kHoldMs);
+    bool cancel = millis() - lastInput > 60000 || holdFired(M5.BtnB, middleDown);
     if (cancel) {
       while (M5.BtnB.isPressed()) { M5.update(); delay(10); }
       return false;
@@ -479,11 +487,7 @@ static Result manualSession(Robot& r) {
     }
     if (drive) { r.driveHold(20); continue; }
     for (int i = 0; i < 3; i++) {
-      // left held 1.5 s = done, at once while still held (like the home screen)
-      if (i == 0 && down[0] && M5.BtnA.isPressed() && millis() - down[0] >= ui::kHoldMs) {
-        M5.Speaker.tone(1500, 60);
-        return r.exitManual();
-      }
+      if (i == 0 && holdFired(M5.BtnA, down[0])) return r.exitManual();   // left held = done
       if (!btn[i]->wasReleased() || !down[i]) continue;
       down[i] = 0;
       Key k = i == 0 ? Key::Soft1 : i == 1 ? Key::Soft2 : Key::Soft3;
@@ -747,7 +751,7 @@ static bool typePassword(const String& ssid, String& out) {
     if (!M5.BtnA.isPressed()) heldA = 0;
     if (!M5.BtnC.isPressed()) heldC = 0;
     if (M5.BtnB.wasPressed()) { middleDown = now; lastInput = now; }
-    if (now - lastInput > 180000 || (middleDown && M5.BtnB.isPressed() && now - middleDown >= ui::kHoldMs)) {
+    if (now - lastInput > 180000 || holdFired(M5.BtnB, middleDown)) {
       waitAllReleased();
       return false;
     }
@@ -1253,8 +1257,7 @@ static void wifiMenu() {
     if (M5.BtnA.wasReleased()) { chooseNetwork(); return; }
     if (M5.BtnB.wasReleased()) { wpsSetup(); return; }
     if (M5.BtnC.wasPressed()) rightDown = millis();
-    if (rightDown && M5.BtnC.isPressed() && millis() - rightDown >= ui::kHoldMs) {
-      M5.Speaker.tone(1500, 60);
+    if (holdFired(M5.BtnC, rightDown)) {
       waitAllReleased();
       otaUpdate();
       return;
@@ -1352,7 +1355,7 @@ void setup() {
 void loop() {
   // Short press: acts on release (a route). Held 1.5 s: acts at once, while the button is
   // still down (Erik 2026-11-06), with a short beep; its release is then ignored.
-  // Middle = manual drive, left switches the planning, right opens the PIN screen.
+  // Middle = manual drive, left switches the planning, right opens the settings (holdFired).
   static uint32_t pressedAt[3] = {0, 0, 0};
   M5.update();
   m5::Button_Class* btn[3] = {&M5.BtnA, &M5.BtnB, &M5.BtnC};
@@ -1372,12 +1375,11 @@ void loop() {
   for (int i = 0; i < 3; i++) {
     if (btn[i]->wasPressed()) pressedAt[i] = millis();
     if (!pressedAt[i]) continue;
-    bool longPress = btn[i]->isPressed() && millis() - pressedAt[i] >= ui::kHoldMs;
+    bool longPress = holdFired(*btn[i], pressedAt[i]);
     if (!longPress && !btn[i]->wasReleased()) continue;
     pressedAt[i] = 0;
     if (!longPress) startRoute(routes[i]);
     else {
-      M5.Speaker.tone(1500, 60);
       if (i == 1) withRobot(tx->manual, Kind::Manual, manualSession);
       else if (i == 0) togglePlanning();
       else settingsMenu();
