@@ -5,6 +5,8 @@
 //   SCRAPER_SIMULATOR=<simulator script> ./gradlew :composeApp:run   a simulated robot (see the driver)
 package nl.eschouten.scraper.app
 
+import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -25,7 +27,14 @@ fun demoWords(args: Array<String>): String? {
   return System.getenv("SCRAPER_DEMO")
 }
 
+// The window's icon (taskbar, window switcher; the Mac Dock uses the .app's icon.icns).
+private fun appIcon(): BitmapPainter? =
+  DesktopHost::class.java.getResourceAsStream("/icon.png")?.use {
+    BitmapPainter(org.jetbrains.skia.Image.makeFromEncoded(it.readAllBytes()).toComposeImageBitmap())
+  }
+
 fun main(args: Array<String>) {
+  val icon = appIcon()
   val demo = demoWords(args)
   val controller = AppStart.controller(FileStore(), demo)
   val nav = Nav()
@@ -36,6 +45,7 @@ fun main(args: Array<String>) {
         exitApplication()
       },
       title = "Scraper Control",
+      icon = icon,
       state = rememberWindowState(width = 420.dp, height = 820.dp),
       onPreviewKeyEvent = { e -> e.type == KeyEventType.KeyDown && e.key == Key.Escape && nav.back() },
     ) {
