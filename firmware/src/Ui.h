@@ -6,8 +6,9 @@
 // screen, no flicker. A new title fades in; the same title (a counter, a cursor) is swapped
 // at once. Drawn after that (a hint, a download's progress) goes onto the shown screen.
 //
-// LVGL runs in its own task (draws, animates, shows the presses on the labels above the
-// three buttons); every call from the firmware takes the same lock (ui::Lock).
+// LVGL runs in its own task on the other processor core (draws, animates, shows the presses
+// on the labels above the three buttons); every call from the firmware takes the same lock
+// (ui::Lock).
 #pragma once
 #include <M5Unified.h>
 
@@ -160,6 +161,7 @@ static lv_obj_t* box(int x, int y, int w, int h, int r, Color fill, Color border
 
 // A card: white ones float a little (soft shadow), tinted ones (ok / error) lie flat.
 static void card(int x, int y, int w, int h, Color fill, bool border = true) {
+  Lock l;
   lv_obj_t* o = box(x, y, w, h, 12, fill, border ? kLine : kNone);
   if (border) {
     lv_obj_set_style_shadow_width(o, 12, 0);
@@ -476,8 +478,11 @@ static void begin() {
   lv_obj_set_style_bg_color(lv_screen_active(), col(kBg), 0);
   lv_obj_set_style_bg_opa(lv_screen_active(), LV_OPA_COVER, 0);
 #ifdef ARDUINO
-  // core 1 with the firmware; a little above it so presses and fades stay smooth
-  xTaskCreatePinnedToCore(task, "lvgl", 8192, nullptr, 2, nullptr, 1);
+  // On core 0, at the firmware's own priority: the robot logic (loop task, core 1) is never
+  // held up by drawing. A key press is "down, 80 ms, up" and the robot's answer has to be read
+  // in time; with this task above the loop task on the same core, a screen being drawn stretched
+  // both and the robot stopped following the keys (seen 2026-11-12: planning did not switch).
+  xTaskCreatePinnedToCore(task, "lvgl", 8192, nullptr, 1, nullptr, 0);
 #endif
 }
 
