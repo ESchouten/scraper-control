@@ -169,7 +169,7 @@ final class ScenarioTests: XCTestCase {
     waitLabel("fact-planning", contains: tr.on)
     waitEnabled("fact-planning") // editable once the read is done
     tap("fact-planning")
-    app.alerts.buttons[tr.switchOff].tap()
+    app.alerts.buttons[tr.switchOff].firstMatch.tap()
     waitLabel("fact-planning", contains: tr.off)
   }
 
@@ -193,7 +193,7 @@ final class ScenarioTests: XCTestCase {
     launch("setup=done", lang: "nl")
     tap("home-settings")
     tapInList("row-language")
-    app.buttons["English"].tap()
+    app.buttons["English"].firstMatch.tap()
     XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: waitTime))
   }
 
@@ -240,7 +240,7 @@ final class ScenarioTests: XCTestCase {
     tapInList("row-logbook")
     waitText(tr.dryRun)
     tap("logbook-clear")
-    app.alerts.buttons[tr.clear].tap()
+    app.alerts.buttons[tr.clear].firstMatch.tap()
     waitFor("logbook-empty")
   }
 
