@@ -73,7 +73,7 @@ static const Texts kNl = {
     "Route afmaken?", "Ja: de robot rijdt de route verder.", "Nee: de route stopt, het tijdpad blijft uit.",
     "Ja", "Nee", "Later", "Route gaat verder", "Route afgebroken",
     "De vraag staat nog op de robot. Beantwoord hem daar, of druk weer op een routeknop.",
-    "Wifi zoeken voor een update...", "Geen bekende wifi in de buurt.", "Nieuwste versie, geen update.",
+    "Zoekt wifi voor update...", "Geen bekende wifi in de buurt.", "Nieuwste versie, geen update.",
     "Klaar", "Tik op een route om te starten", "Tik: start / stop", "zojuist",
     "%d min geleden", "%d uur geleden",
 };
@@ -107,7 +107,7 @@ static const Texts kEn = {
     "Finish the route?", "Yes: the robot drives the rest of the route.", "No: the route ends, the schedule stays off.",
     "Yes", "No", "Later", "Route continues", "Route cancelled",
     "The question is still on the robot. Answer it there, or press a route button again.",
-    "Looking for wifi for an update...", "No known wifi nearby.", "Latest version, no update.",
+    "Finding wifi for update...", "No known wifi nearby.", "Latest version, no update.",
     "Ready", "Tap a route to start it", "Tap: start / stop", "just now",
     "%d min ago", "%d h ago",
 };

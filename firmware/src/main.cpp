@@ -124,7 +124,12 @@ static void settingRow(int i, const char* icon, const String& label, const Strin
   centred(icon, 37, y + 8, kBold, kRed);
   text(label, 62, y, kBody, kMuted);
   String v = value;
-  while (v.length() > 1 && textW(v, kBold) > 232) v = v.substring(0, v.length() - 1);
+  if (textW(v, kBold) > 232) {   // too long: cut and end in "..."
+    auto last = [&] { return v.c_str()[v.length() - 1]; };
+    while (v.length() > 1 && (textW(v + "...", kBold) > 232 || last() == '.' || last() == ' '))
+      v = v.substring(0, v.length() - 1);
+    v += "...";
+  }
   text(v, 62, y + 17, kBold, kInk);
 }
 
@@ -242,9 +247,8 @@ static void drawResult(const String& title, bool ok, const String& heading, cons
   card(10, 56, 300, 136, ok ? kOkSoft : kErrSoft, false);
   disc(22, 66, 40, ok ? ICON_OK : ICON_WARNING, ok ? kOk : kErr);
   int y = wrap(heading, 74, 66, 226, kTitle, ok ? kOk : kErr, 116);
-  y = y < 112 ? 112 : y + 4;
-  if (ok) statusRows(st, y, 190);
-  else wrap(detail, 24, y, 272, kBody, kInk, 190);
+  if (ok) statusRows(st, y < 112 ? 112 : y + 4, 190);
+  else wrap(detail, 24, y < 108 ? 108 : y + 2, 272, kBody, kInk, 192);   // four lines fit under a one-line heading
   hint(tx->pressAnyButton);
 }
 
@@ -1234,7 +1238,7 @@ static void drawSettings(const char* line = nullptr) {
   settingRow(0, ICON_ROBOT, tx->robotRow, savedAddress.empty() ? String(tx->automatic) : String(savedAddress.c_str()));
   settingRow(1, ICON_WIFI, tx->wifiRow, wifiSsid.isEmpty() ? String(tx->notSet) : wifiSsid);
   String version = String(FW_VERSION) + " (" + String(FW_BUILD) + ")";
-  if (line) settingRow(2, ICON_SYNC, String(tx->versionRow) + " " + version, line);   // looking for an update
+  if (line) settingRow(2, ICON_SYNC, tx->versionRow, line);   // looking for an update
   else settingRow(2, ICON_DOWNLOAD, tx->versionRow, version);
   String label[3] = {String(ICON_KEY) + " " + tx->pinTitle, String(ICON_ROBOT) + " " + tx->robotWord, String(ICON_WIFI) + " " + tx->wifiRow};
   Pill style[3] = {Pill::Neutral, Pill::Neutral, Pill::Neutral};

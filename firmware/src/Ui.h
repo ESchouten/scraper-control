@@ -251,17 +251,6 @@ static void pills(const String (&label)[3], const Pill (&style)[3], int y = kFoo
 
 static void hint(const String& s) { centred(s, kW / 2, kFooterY + 12, kBody, kMuted); }
 
-// Round status icon: tick (ok) or exclamation mark (error).
-static void badge(int cx, int cy, bool ok) {
-  Lock l;
-  lv_obj_t* o = box(cx - 13, cy - 13, 26, 26, LV_RADIUS_CIRCLE, ok ? kOk : kErr);
-  lv_obj_t* t = lv_label_create(o);
-  lv_label_set_text(t, ok ? ICON_OK : "!");
-  lv_obj_set_style_text_font(t, kBold, 0);
-  lv_obj_set_style_text_color(t, col(kWhite), 0);
-  lv_obj_center(t);
-}
-
 // A large round icon (results, questions): white icon on a coloured disc of size d.
 static void disc(int x, int y, int d, const char* icon, Color fill, Color ink = kWhite) {
   Lock l;
