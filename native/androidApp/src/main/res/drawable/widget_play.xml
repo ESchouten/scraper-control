@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Small "start" hint on the one-route widget: soft red circle with a red play triangle. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="26dp" android:height="26dp" android:viewportWidth="26" android:viewportHeight="26">
+    <path android:fillColor="@color/widget_play_bg" android:pathData="M13,0a13,13 0,1 1,0 26a13,13 0,1 1,0 -26z" />
+    <path android:fillColor="#C8102E" android:pathData="M10.5,8L18,13L10.5,18Z" />
+</vector>

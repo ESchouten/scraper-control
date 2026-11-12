@@ -32,7 +32,13 @@ import nl.eschouten.scraper.app.WidgetNotice
 import nl.eschouten.scraper.texts.tr
 
 object WidgetViews {
-  private val buttons = mapOf("A" to R.id.route_a, "B" to R.id.route_b, "C" to R.id.route_c, "D" to R.id.route_d)
+  private class Tile(val root: Int, val letter: Int, val name: Int)
+  private val tiles = mapOf(
+    "A" to Tile(R.id.route_a, R.id.letter_a, R.id.name_a),
+    "B" to Tile(R.id.route_b, R.id.letter_b, R.id.name_b),
+    "C" to Tile(R.id.route_c, R.id.letter_c, R.id.name_c),
+    "D" to Tile(R.id.route_d, R.id.letter_d, R.id.name_d),
+  )
 
   fun store(c: Context) = PrefsStore(c).also { Settings.load(it) } // also sets the app's language
 
@@ -61,12 +67,18 @@ object WidgetViews {
       RemoteViews(c.packageName, R.layout.widget_routes).apply {
         setTextViewText(R.id.title, b.title)
         val shown = b.routes.associateBy { it.route }
-        buttons.forEach { (letter, view) ->
-          setViewVisibility(view, if (letter in shown) View.VISIBLE else View.GONE)
-          setOnClickPendingIntent(view, tap(c, widgetId * 10 + 1 + "ABCD".indexOf(letter), b.robotUid, letter))
-          shown[letter]?.let { setContentDescription(view, tr.startRoute(it.title)) }
+        tiles.forEach { (letter, t) ->
+          setViewVisibility(t.root, if (letter in shown) View.VISIBLE else View.GONE)
+          setOnClickPendingIntent(t.root, tap(c, widgetId * 10 + 1 + "ABCD".indexOf(letter), b.robotUid, letter))
+          shown[letter]?.let {
+            setTextViewText(t.name, it.title)
+            setContentDescription(t.root, tr.startRoute(it.title))
+          }
         }
         setTextViewText(R.id.status, b.status)
+        val on = b.scheduleOn
+        setViewVisibility(R.id.schedule_dot, if (on == null) View.GONE else View.VISIBLE)
+        if (on != null) setImageViewResource(R.id.schedule_dot, if (on) R.drawable.widget_dot_on else R.drawable.widget_dot_off)
         setOnClickPendingIntent(
           R.id.status,
           PendingIntent.getActivity(c, widgetId, Intent(c, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT),

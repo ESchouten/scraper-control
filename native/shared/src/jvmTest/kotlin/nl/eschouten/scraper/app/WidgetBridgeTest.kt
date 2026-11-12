@@ -2,9 +2,11 @@
 package nl.eschouten.scraper.app
 
 import kotlinx.coroutines.runBlocking
+import kotlinx.datetime.TimeZone
 import nl.eschouten.scraper.model.scraperModels
 import nl.eschouten.scraper.texts.tr
 import nl.eschouten.scraper.texts.useLanguage
+import nl.eschouten.scraper.ui.Fmt
 import nl.eschouten.scraper.ui.RunFlow
 import kotlin.test.AfterTest
 import kotlin.test.Test
@@ -40,7 +42,16 @@ class WidgetBridgeTest {
     val o = WidgetBridge.tap(store, uid, "b") { refreshed++ }
     assertTrue(o.ok, o.message)
     bar = WidgetBridge.bar(store, uid)
-    assertTrue(bar.status.endsWith(tr.routeStarted("Route B")), bar.status)
+    val on = bar.scheduleOn
+    if (on != null) assertEquals(tr.widgetSchedule(on, WidgetBridge.robot(store, uid)!!.next), bar.status)   // the schedule, once seen
+    else assertTrue(bar.status.endsWith(tr.routeStarted("Route B")), bar.status)
+    assertTrue(store.getString("w.status.$uid")!!.endsWith(tr.routeStarted("Route B")))
+    // the schedule the tap saw is what the widget shows (the tap's own controller does not publish)
+    val snap = Settings.load(store).robot.snapshot
+    val shown = WidgetBridge.robot(store, uid)!!
+    assertEquals(snap?.planning, shown.planning)
+    assertEquals(snap?.nextRide.orEmpty(), shown.next)
+    assertEquals(snap?.at ?: 0L, shown.seen)
     assertTrue(refreshed >= 4)
     // the logbook says it came from the widget
     val h = History.load(store)
@@ -48,6 +59,51 @@ class WidgetBridgeTest {
     assertEquals(1, WidgetBridge.choices(store, tile = false).size)
     assertEquals(3, WidgetBridge.choices(store, tile = true).size)
     c.dispose()
+  }
+
+  @Test fun barShowsTheScheduleWhenKnown() {
+    useLanguage("en")
+    val store = MemoryStore()
+    store.putString("w.robots", """[{"uid":"r1","name":"Stal","routes":[{"l":"A","t":"Voergang"}]}]""")
+    store.putString("w.status.r1", "08:12  Voergang started")
+    assertEquals("08:12  Voergang started", WidgetBridge.bar(store, "r1").status)
+    assertEquals(null, WidgetBridge.bar(store, "r1").scheduleOn)
+    store.putString("w.robots", """[{"uid":"r1","name":"Stal","routes":[{"l":"A","t":"Voergang"}],"planning":true,"next":"21:00"}]""")
+    assertEquals("Schedule on · next 21:00", WidgetBridge.bar(store, "r1").status)
+    assertEquals(true, WidgetBridge.bar(store, "r1").scheduleOn)
+    store.putString("w.robots", """[{"uid":"r1","name":"Stal","routes":[{"l":"A","t":"Voergang"}],"planning":false}]""")
+    assertEquals("Schedule off", WidgetBridge.bar(store, "r1").status)
+  }
+
+  @Test fun nextRunTimeIsDroppedOnceItHasPassed() {
+    useLanguage("en")
+    val zone = Fmt.zone
+    Fmt.zone = TimeZone.UTC
+    try {
+      val seen = 1_794_471_120_000L   // 2026-11-12 08:12 UTC
+      val nine = seen + (12 * 60 + 48) * 60_000L   // 21:00 the same day
+      val store = MemoryStore()
+      store.putString("w.robots", """[{"uid":"r1","name":"Stal","routes":[{"l":"A","t":"Voergang"}],"planning":true,"next":"21:00","seen":$seen}]""")
+      var bar = WidgetBridge.bar(store, "r1", nine - 60_000)
+      assertEquals("Schedule on · next 21:00", bar.status)
+      assertEquals(nine, bar.changesAt)   // the widgets redraw then
+      bar = WidgetBridge.bar(store, "r1", nine)
+      assertEquals("Schedule on", bar.status)
+      assertEquals(true, bar.scheduleOn)
+      assertEquals(null, bar.changesAt)
+      // a time earlier in the day than when it was seen is the next day's run
+      assertEquals(seen + (22 * 60 + 48) * 60_000L, WidgetBridge.nextRunAt(seen, "07:00"))
+      assertEquals(nine, WidgetBridge.nextRunAt(seen, "21:00:00"))
+      assertEquals(null, WidgetBridge.nextRunAt(0, "21:00"))
+      assertEquals(null, WidgetBridge.nextRunAt(seen, ""))
+      // schedule off stays off; not known when seen (older data): the time stays
+      store.putString("w.robots", """[{"uid":"r1","name":"Stal","routes":[],"planning":false,"next":"21:00","seen":$seen}]""")
+      assertEquals("Schedule off", WidgetBridge.bar(store, "r1", nine + 1).status)
+      store.putString("w.robots", """[{"uid":"r1","name":"Stal","routes":[],"planning":true,"next":"21:00"}]""")
+      assertEquals("Schedule on · next 21:00", WidgetBridge.bar(store, "r1", nine + 1).status)
+    } finally {
+      Fmt.zone = zone
+    }
   }
 
   @Test fun noticeOnlyWhenAStartFailed() {
