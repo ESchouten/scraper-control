@@ -6,7 +6,7 @@ package nl.eschouten.scraper.link
 
 import com.juul.kable.Advertisement
 import com.juul.kable.Peripheral
-import com.juul.kable.Scanner
+import com.juul.kable.PlatformScanner
 import com.juul.kable.State
 import com.juul.kable.WriteType
 import com.juul.kable.characteristicOf
@@ -36,6 +36,9 @@ expect fun bluetoothProblem(): BluetoothProblem?
 /** A peripheral straight from a remembered id, or null if this platform needs a scan first. */
 internal expect fun peripheralById(id: String): Peripheral?
 
+/** A scanner for the short searches below. Per platform: Android's default listens only a tenth of the time. */
+internal expect fun robotScanner(): PlatformScanner
+
 /** After connecting: e.g. a bigger MTU on Android. */
 internal expect suspend fun afterConnect(p: Peripheral)
 
@@ -51,7 +54,7 @@ private fun LinkSpec.BleSerial.matches(a: Advertisement, name: String?): Boolean
 suspend fun findRobots(spec: LinkSpec.BleSerial, name: String? = null, timeoutMs: Long = 5_000): List<FoundRobot> {
   val found = mutableMapOf<String, FoundRobot>()
   withTimeoutOrNull(timeoutMs) {
-    Scanner().advertisements.collect { a ->
+    robotScanner().advertisements.collect { a ->
       if (spec.matches(a, name)) {
         val id = a.identifier.toString()
         found[id] = FoundRobot(id, a.name ?: a.peripheralName ?: "", a.rssi)
@@ -79,7 +82,7 @@ class BleSerialLink(
     val p = peripheralById(id) ?: run {
       // scan for it: by id, else by name
       val adv = withTimeoutOrNull(8_000) {
-        Scanner().advertisements.firstOrNull { a -> a.identifier.toString() == id || (spec.matches(a, name) && !name.isNullOrEmpty()) }
+        robotScanner().advertisements.firstOrNull { a -> a.identifier.toString() == id || (spec.matches(a, name) && !name.isNullOrEmpty()) }
       } ?: throw IllegalStateException("robot $id not found")
       Peripheral(adv)
     }
