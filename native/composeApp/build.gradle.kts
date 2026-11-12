@@ -45,10 +45,7 @@ compose.desktop {
         org.jetbrains.compose.desktop.application.dsl.TargetFormat.Dmg,
         org.jetbrains.compose.desktop.application.dsl.TargetFormat.Deb,
       )
-      val version = providers.gradleProperty("scraper.version").get()
-      linux { debPackageVersion = version }
-      // macOS wants a first number above 0: 0.6.0 becomes 1.6.0 in the .dmg only.
-      macOS { dmgPackageVersion = version.replace(Regex("^0\\."), "1.") }
+      packageVersion = providers.gradleProperty("scraper.version").get()
     }
   }
 }
