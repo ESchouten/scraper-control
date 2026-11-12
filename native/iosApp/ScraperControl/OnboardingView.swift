@@ -131,13 +131,7 @@ struct StepFrame<Content: View>: View {
         Button(action: onBack) { Image(systemName: "chevron.left").font(.system(size: scaled(18), weight: .semibold)).frame(width: 44, height: 44) }
           .accessibilityLabel(h.backLabel).testId("back")
         Text(h.step).fontWeight(.bold).foregroundStyle(C.onSurfaceVariant)
-        GeometryReader { g in
-          ZStack(alignment: .leading) {
-            Capsule().fill(C.containerHigh)
-            Capsule().fill(C.primary).frame(width: g.size.width * CGFloat(h.progress))
-          }
-        }
-        .frame(height: 5)
+        ProgressBar(value: Double(h.progress), height: 5)
         .padding(.leading, Space.s)
       }
       .padding(.leading, Space.xs).padding(.trailing, Space.gutter)

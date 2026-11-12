@@ -149,7 +149,7 @@ class LelySession(
       guard { r.connect() }
     } finally {
       r.newImageVersion?.let { v ->
-        profile = profile.copy(extra = profile.extra + ("imageVersion" to v.joinToString("") { b -> (b.toInt() and 0xff).toString(16).padStart(2, '0') }))
+        profile = profile.copy(extra = profile.extra + ("imageVersion" to v.toHexString()))
         onChanged(profile)
       }
     }
@@ -199,8 +199,7 @@ class LelySession(
 
   private fun imageVersion(): ByteArray? {
     val h = profile.extra["imageVersion"] ?: return null
-    if (h.length != 18) return null
-    return ByteArray(9) { h.substring(it * 2, it * 2 + 2).toInt(16).toByte() }
+    return runCatching { h.hexToByteArray() }.getOrNull()?.takeIf { it.size == 9 }
   }
 
   /** Core errors -> generic faults. */

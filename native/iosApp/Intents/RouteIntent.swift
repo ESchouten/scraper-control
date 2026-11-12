@@ -16,7 +16,6 @@ func widgetStore() -> DefaultsStore {
   return s
 }
 
-@available(iOS 17, *)
 struct RouteIntent: AppIntent {
   static var title: LocalizedStringResource = "Start route"
   static var description = IntentDescription("Connects to the robot, starts a manual route and disconnects.")
@@ -60,17 +59,7 @@ func notifyFailure(_ n: WidgetNotice) async {
   try? await center.add(UNNotificationRequest(identifier: "widget-failure", content: content, trigger: nil))
 }
 
-/// The app asks once, when set up (not for the demo robot), so failed widget starts can alert.
-func askNotificationsOnce() {
-  let key = "asked.notifications"
-  let d = UserDefaults.standard
-  if d.bool(forKey: key) { return }
-  d.set(true, forKey: key)
-  UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
-}
-
 /// "Start route A with Scraper Control" in Siri and Shortcuts.
-@available(iOS 17, *)
 struct RouteShortcuts: AppShortcutsProvider {
   static var appShortcuts: [AppShortcut] {
     AppShortcut(

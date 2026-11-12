@@ -51,7 +51,7 @@ targets:
     platform: iOS
     templates: [SharedModule]
     deploymentTarget: "17.0"
-    sources: [Widgets, Intents]
+    sources: [Widgets, Intents, ScraperControl/Theme.swift]   # the app's colours and route badge
     info:
       path: Widgets/Info.plist
       properties:

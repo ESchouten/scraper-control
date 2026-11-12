@@ -6,6 +6,7 @@
 // launch argument -demo "<words>" (see shared app/AppStart.kt).
 import Shared
 import SwiftUI
+import UserNotifications
 import WidgetKit
 
 /// The shared texts (same as the Compose app): `tr.cancel`, `tr.routeStarted(title: "A")`.
@@ -18,6 +19,9 @@ var tr: Tr { TextsKt.tr }
   @Published var state: ControllerState
   @Published var toast: String?
   @Published var path: [Screen] = []
+  /// Now in Kotlin's milliseconds, ticking every 20 s for "3 min ago".
+  @Published private(set) var now = AppModel.ms()
+  private var clock: Timer?
   private var handle: (any Cancellable)?
   private var toastTask: Task<Void, Never>?
 
@@ -32,7 +36,12 @@ var tr: Tr { TextsKt.tr }
     if demo == nil { WidgetBridge.shared.install(controller: controller, store: store) { WidgetCenter.shared.reloadAllTimelines() } }
     state = controller.state.value as! ControllerState
     handle = controller.watch { [weak self] s in self?.state = s }
+    clock = Timer.scheduledTimer(withTimeInterval: 20, repeats: true) { [weak self] _ in
+      Task { @MainActor in self?.now = AppModel.ms() }
+    }
   }
+
+  static func ms() -> Int64 { Int64(Date().timeIntervalSince1970 * 1000) }
 
   func show(_ message: String?) {
     guard let m = message, !m.isEmpty else { return }
@@ -86,7 +95,8 @@ struct RootView: View {
               }
             }
         }
-        .task { if !app.isDemo { askNotificationsOnce() } }
+        // so failed widget starts can alert; iOS asks only the first time
+        .task { if !app.isDemo { _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) } }
       }
       if let t = app.toast { ToastView(text: t).transition(.move(edge: .bottom).combined(with: .opacity)) }
     }

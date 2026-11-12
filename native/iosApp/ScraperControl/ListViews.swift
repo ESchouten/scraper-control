@@ -25,10 +25,9 @@ struct Pushed<Content: View>: View {
 
 struct LogbookView: View {
   @EnvironmentObject var app: AppModel
-  @StateObject private var ticker = Ticker()
   @State private var ask = false
   var body: some View {
-    let v = ListsKt.logbookScreen(s: app.state, now: ticker.now)
+    let v = ListsKt.logbookScreen(s: app.state, now: app.now)
     Pushed(title: v.title, testId: "logbook") {
       if v.days.isEmpty {
         VStack(spacing: Space.s) {
@@ -149,11 +148,10 @@ struct SectionView<RowView: View>: View {
 
 struct SettingsView: View {
   @EnvironmentObject var app: AppModel
-  @StateObject private var ticker = Ticker()
   @State private var pickLanguage = false
   @State private var askReset = false
   var body: some View {
-    let v = SettingsScreensKt.settingsScreen(s: app.state, now: ticker.now, platform: app.platform)
+    let v = SettingsScreensKt.settingsScreen(s: app.state, now: app.now, platform: app.platform)
     Pushed(title: v.title, testId: "settings") {
       ForEach(v.sections, id: \.title) { sec in
         SectionView(sec: sec) { r in SettingsRow(r: r, onTap: tap(r)) }

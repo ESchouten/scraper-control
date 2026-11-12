@@ -4,39 +4,20 @@
 import AppIntents
 import Shared
 import SwiftUI
-import UIKit
 import WidgetKit
 
-private let brandRed = Color(red: 0xC8 / 255, green: 0x10 / 255, blue: 0x2E / 255)
-
 // The app's look (Option 1, Erik 2026-11-12): white or dark card, a soft tile per route.
-private func dynamic(_ light: UInt32, _ dark: UInt32) -> Color {
-  func ui(_ v: UInt32) -> UIColor {
-    UIColor(red: CGFloat(v >> 16 & 0xFF) / 255, green: CGFloat(v >> 8 & 0xFF) / 255, blue: CGFloat(v & 0xFF) / 255, alpha: 1)
-  }
-  return Color(UIColor { $0.userInterfaceStyle == .dark ? ui(dark) : ui(light) })
-}
-private let widgetBg = dynamic(0xFFFFFF, 0x1E1C1C)
-private let tileBg = dynamic(0xF6F4F3, 0x2C2928)
-private let playBg = dynamic(0xFFE5E7, 0x3A2326)
+// Colours and the route badge: the app's Theme.swift.
+private let widgetBg = Color(light: 0xFFFFFF, dark: 0x1E1C1C)
+private let tileBg = Color(light: 0xF6F4F3, dark: 0x2C2928)
+private let playBg = Color(light: 0xFFE5E7, dark: 0x3A2326)
 
 /// The app's mark, small: red rounded square with a white play triangle.
 private struct Mark: View {
   var body: some View {
-    RoundedRectangle(cornerRadius: 5, style: .continuous).fill(brandRed)
+    RoundedRectangle(cornerRadius: 5, style: .continuous).fill(Brand.red)
       .frame(width: 18, height: 18)
       .overlay(Image(systemName: "play.fill").font(.system(size: 8, weight: .bold)).foregroundStyle(.white).offset(x: 0.5))
-  }
-}
-
-/// A route's letter on a red rounded square, as on the app's route cards.
-private struct Letter: View {
-  let text: String
-  let size: CGFloat
-  var body: some View {
-    Text(text).font(.system(size: size * 0.5, weight: .heavy)).foregroundStyle(.white)
-      .frame(width: size, height: size)
-      .background(RoundedRectangle(cornerRadius: size * 0.27, style: .continuous).fill(brandRed))
   }
 }
 
@@ -106,7 +87,7 @@ struct BarView: View {
         Text(entry.bar.title).font(.system(size: 14, weight: .bold)).lineLimit(1)
         Spacer(minLength: 8)
         if let on = entry.bar.scheduleOn?.boolValue {
-          Circle().fill(on ? Color(red: 0x1B / 255, green: 0x7F / 255, blue: 0x3B / 255) : Color.secondary)
+          Circle().fill(on ? C.ok : Color.secondary)
             .frame(width: 6, height: 6)
         }
         Text(entry.bar.status).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
@@ -115,7 +96,7 @@ struct BarView: View {
         ForEach(entry.bar.routes, id: \.route) { r in
           Button(intent: RouteIntent(route: r.route, robot: entry.bar.robotUid ?? "")) {
             VStack(spacing: 7) {
-              Letter(text: r.route, size: 40)
+              RouteBadge(letter: r.route, size: 40, solid: true)
               Text(r.title).font(.system(size: 11.5, weight: .semibold)).foregroundStyle(.primary).lineLimit(1)
                 .padding(.horizontal, 4)
             }
@@ -163,7 +144,7 @@ struct TileView: View {
       ZStack(alignment: .topTrailing) {
         VStack(alignment: .leading, spacing: 0) {
           Spacer(minLength: 0)
-          Letter(text: entry.tile.route, size: 62)
+          RouteBadge(letter: entry.tile.route, size: 62, solid: true)
           Text(entry.tile.title).font(.system(size: 15, weight: .bold)).foregroundStyle(.primary).lineLimit(1)
             .padding(.top, 10)
           Text(entry.tile.detail).font(.system(size: 11.5)).foregroundStyle(.secondary).lineLimit(1)
@@ -171,7 +152,7 @@ struct TileView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         Circle().fill(playBg).frame(width: 26, height: 26)
-          .overlay(Image(systemName: "play.fill").font(.system(size: 10, weight: .bold)).foregroundStyle(brandRed).offset(x: 1))
+          .overlay(Image(systemName: "play.fill").font(.system(size: 10, weight: .bold)).foregroundStyle(Brand.red).offset(x: 1))
       }
     }
     .buttonStyle(.plain)

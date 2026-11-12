@@ -4,7 +4,6 @@ import SwiftUI
 
 struct HomeView: View {
   @EnvironmentObject var app: AppModel
-  @StateObject private var ticker = Ticker()
   @State private var runRoute: RouteItem?
   @State private var switcher = false
   @State private var askPlanning = false
@@ -13,7 +12,7 @@ struct HomeView: View {
 
   var body: some View {
     let s = app.state
-    let h = HomeKt.homeScreen(s: s, now: ticker.now, platform: app.platform)
+    let h = HomeKt.homeScreen(s: s, now: app.now, platform: app.platform)
     ScrollView {
       VStack(spacing: 0) {
         header(h)

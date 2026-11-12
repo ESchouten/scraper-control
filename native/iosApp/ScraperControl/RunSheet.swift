@@ -145,13 +145,7 @@ struct StepsProgress: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
       Text(p.headline).font(.system(size: scaled(22), weight: .bold)).testId("progress-headline")
-      GeometryReader { g in
-        ZStack(alignment: .leading) {
-          Capsule().fill(C.containerHigh)
-          Capsule().fill(C.primary).frame(width: g.size.width * CGFloat(p.value))
-        }
-      }
-      .frame(height: 8)
+      ProgressBar(value: Double(p.value))
       .padding(.top, Space.m)
       .animation(.easeOut(duration: 0.35), value: p.value)
       VStack(alignment: .leading, spacing: 10) {
@@ -223,9 +217,8 @@ struct SlideToConfirm: View {
 struct RobotSwitcher: View {
   @EnvironmentObject var app: AppModel
   @Environment(\.dismiss) private var dismiss
-  @StateObject private var ticker = Ticker()
   var body: some View {
-    let v = ListsKt.switcherSheet(s: app.state, now: ticker.now)
+    let v = ListsKt.switcherSheet(s: app.state, now: app.now)
     VStack(alignment: .leading, spacing: Space.m) {
       Text(v.title).font(.system(size: scaled(22), weight: .bold))
       GroupCard {

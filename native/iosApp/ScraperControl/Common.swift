@@ -16,40 +16,24 @@ final class Held<T>: ObservableObject {
 
   init(_ initial: T, _ watch: (@escaping (T) -> Void) -> any Cancellable) {
     value = initial
-    handle = watch { [weak self] v in
-      if Thread.isMainThread { self?.value = v } else { DispatchQueue.main.async { self?.value = v } }
-    }
+    handle = watch { [weak self] v in self?.value = v }   // watch() calls back on the main thread
   }
 
   deinit { handle?.cancel() }
 }
 
-/// Now in Kotlin's milliseconds, ticking every 20 s for "3 min ago".
-@MainActor final class Ticker: ObservableObject {
-  @Published var now: Int64 = Ticker.ms()
-  private var timer: Timer?
-  init() {
-    timer = Timer.scheduledTimer(withTimeInterval: 20, repeats: true) { [weak self] _ in
-      Task { @MainActor in self?.now = Ticker.ms() }
-    }
-  }
-  static func ms() -> Int64 { Int64(Date().timeIntervalSince1970 * 1000) }
-}
-
-/// Letter badge for a route (A-D).
-struct RouteBadge: View {
-  let letter: String
-  var size: CGFloat = 52
-  var solid = false
-  var muted = false
+/// A rounded progress bar in the brand colour ([value] 0...1).
+struct ProgressBar: View {
+  let value: Double
+  var height: CGFloat = 8
   var body: some View {
-    let bg = muted ? C.containerHigh : solid ? C.primary : C.primaryContainer
-    let fg = muted ? C.onSurfaceVariant : solid ? Color.white : C.onPrimaryContainer
-    Text(letter)
-      .font(.system(size: size * 0.46, weight: .heavy))
-      .foregroundStyle(fg)
-      .frame(width: size, height: size)
-      .background(bg, in: RoundedRectangle(cornerRadius: size * 0.3, style: .continuous))
+    GeometryReader { g in
+      ZStack(alignment: .leading) {
+        Capsule().fill(C.containerHigh)
+        Capsule().fill(C.primary).frame(width: g.size.width * CGFloat(value))
+      }
+    }
+    .frame(height: height)
   }
 }
 

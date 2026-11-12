@@ -43,28 +43,21 @@ object Actions {
 
   suspend fun removeRobot(c: RobotController, uid: String) = c.removeRobot(uid)
 
-  private fun profile(c: RobotController, uid: String): RobotProfile? = c.state.value.robots.firstOrNull { it.uid == uid }
-
-  suspend fun rename(c: RobotController, uid: String, name: String) {
-    profile(c, uid)?.let { c.updateRobot(it.copy(label = name.trim())) }
+  /** Changes robot [uid]'s profile (nothing when it was removed meanwhile). */
+  private suspend fun update(c: RobotController, uid: String, change: (RobotProfile) -> RobotProfile) {
+    c.state.value.robots.firstOrNull { it.uid == uid }?.let { c.updateRobot(change(it)) }
   }
 
-  suspend fun setPin(c: RobotController, uid: String, pin: String) {
-    profile(c, uid)?.let { c.updateRobot(it.copy(pin = pin.trim())) }
-  }
+  suspend fun rename(c: RobotController, uid: String, name: String) = update(c, uid) { it.copy(label = name.trim()) }
 
-  suspend fun renameRoute(c: RobotController, uid: String, route: String, name: String) {
-    profile(c, uid)?.let { c.updateRobot(it.withRouteName(route, name)) }
-  }
+  suspend fun setPin(c: RobotController, uid: String, pin: String) = update(c, uid) { it.copy(pin = pin.trim()) }
 
-  suspend fun showRoute(c: RobotController, uid: String, route: String, shown: Boolean) {
-    profile(c, uid)?.let { c.updateRobot(it.withRoute(route, shown)) }
-  }
+  suspend fun renameRoute(c: RobotController, uid: String, route: String, name: String) = update(c, uid) { it.withRouteName(route, name) }
+
+  suspend fun showRoute(c: RobotController, uid: String, route: String, shown: Boolean) = update(c, uid) { it.withRoute(route, shown) }
 
   /** The device picker in a robot's settings. */
-  suspend fun chooseDevice(c: RobotController, uid: String, f: FoundScraper) {
-    profile(c, uid)?.let { c.updateRobot(it.withDevice(f)) }
-  }
+  suspend fun chooseDevice(c: RobotController, uid: String, f: FoundScraper) = update(c, uid) { it.withDevice(f) }
 
   fun clearLogbook(c: RobotController) = c.clearHistory()
 }

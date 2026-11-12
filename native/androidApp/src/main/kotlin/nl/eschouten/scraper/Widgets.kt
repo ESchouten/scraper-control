@@ -6,8 +6,6 @@ package nl.eschouten.scraper
 import android.app.Activity
 import android.Manifest
 import android.app.AlertDialog
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
@@ -25,6 +23,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import androidx.core.app.NotificationChannelCompat
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import nl.eschouten.scraper.app.PrefsStore
 import nl.eschouten.scraper.app.Settings
 import nl.eschouten.scraper.app.WidgetBridge
@@ -139,19 +140,17 @@ object WidgetNotify {
 
   fun show(c: Context, n: WidgetNotice) {
     if (needsPermission(c)) return
-    val m = c.getSystemService(NotificationManager::class.java) ?: return
-    if (Build.VERSION.SDK_INT >= 26) {
-      m.createNotificationChannel(NotificationChannel(CHANNEL, tr.widgetFailuresChannel, NotificationManager.IMPORTANCE_HIGH))
-    }
+    val m = NotificationManagerCompat.from(c)
+    m.createNotificationChannel(
+      NotificationChannelCompat.Builder(CHANNEL, NotificationManagerCompat.IMPORTANCE_HIGH).setName(tr.widgetFailuresChannel).build(),
+    )
     val open = PendingIntent.getActivity(c, 0, Intent(c, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-    @Suppress("DEPRECATION")
-    val b = if (Build.VERSION.SDK_INT >= 26) android.app.Notification.Builder(c, CHANNEL) else android.app.Notification.Builder(c)
     m.notify(
       ID,
-      b.setSmallIcon(android.R.drawable.stat_notify_error)
+      NotificationCompat.Builder(c, CHANNEL).setSmallIcon(android.R.drawable.stat_notify_error)
         .setContentTitle(n.title)
         .setContentText(n.body)
-        .setStyle(android.app.Notification.BigTextStyle().bigText(n.body))
+        .setStyle(NotificationCompat.BigTextStyle().bigText(n.body))
         .setContentIntent(open)
         .setAutoCancel(true)
         .build(),

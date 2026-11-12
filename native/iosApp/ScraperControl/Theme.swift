@@ -76,3 +76,20 @@ func toneColors(_ t: Tone) -> (Color, Color) {
 }
 
 func toneColor(_ t: Tone) -> Color { toneColors(t).0 }
+
+/// Letter badge for a route (A-D).
+struct RouteBadge: View {
+  let letter: String
+  var size: CGFloat = 52
+  var solid = false
+  var muted = false
+  var body: some View {
+    let bg = muted ? C.containerHigh : solid ? C.primary : C.primaryContainer
+    let fg = muted ? C.onSurfaceVariant : solid ? Color.white : C.onPrimaryContainer
+    Text(letter)
+      .font(.system(size: size * 0.46, weight: .heavy))
+      .foregroundStyle(fg)
+      .frame(width: size, height: size)
+      .background(bg, in: RoundedRectangle(cornerRadius: size * 0.3, style: .continuous))
+  }
+}

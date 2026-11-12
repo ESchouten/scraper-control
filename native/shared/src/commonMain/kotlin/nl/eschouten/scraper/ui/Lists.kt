@@ -35,12 +35,8 @@ data class LogbookScreen(
 )
 
 fun logbookScreen(s: ControllerState, now: Long): LogbookScreen {
-  val days = mutableListOf<LogDay>()
-  for (e in s.history) {
-    val d = Fmt.dayTitle(e.at, now)
-    val row = logRow(s, e)
-    if (days.isEmpty() || days.last().title != d) days += LogDay(d, listOf(row)) else days[days.lastIndex] = days.last().copy(rows = days.last().rows + row)
-  }
+  // the history is newest first, so a day's events are together
+  val days = s.history.groupBy { Fmt.dayTitle(it.at, now) }.map { (day, events) -> LogDay(day, events.map { logRow(s, it) }) }
   return LogbookScreen(
     tr.logbook, tr.clearLogbook,
     Confirm(Glyph.Delete, tr.clearLogbookQ, tr.clearLogbookBody, tr.clear, tr.cancel),
