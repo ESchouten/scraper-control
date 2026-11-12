@@ -20,8 +20,9 @@ enum class Capability {
   RouteContents, // readRoutes(): what each route slot consists of on the robot
 }
 
-/** A robot found nearby. [signal] is RSSI in dBm, -127 if unknown. */
-data class FoundScraper(val id: String, val name: String, val signal: Int)
+/** A robot found nearby. [signal] is RSSI in dBm, -127 if unknown. [link]: how it was found
+ *  (link/LinkSpec kind, "" = the driver's preferred), to be remembered with the robot. */
+data class FoundScraper(val id: String, val name: String, val signal: Int, val link: String = "")
 
 /** Status in generic terms. Fields a type does not report stay null / empty. */
 data class ScraperStatus(

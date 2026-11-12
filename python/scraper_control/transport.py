@@ -1,16 +1,17 @@
-"""Links to the robot. The driver says which kind it needs (core.link_info()); each kind is
-implemented here once. So far: "ble-serial" with bleak (write to RX, notifications from TX)."""
+"""Links to the robot. The driver lists the kinds it can be reached over (core.links_info());
+each kind is implemented here once. So far: "ble-serial" with bleak (write to RX,
+notifications from TX)."""
 from __future__ import annotations
 
 from collections.abc import Callable
 
 from bleak import BleakClient
 
-from .core import link_info
+from .core import links_info
 
-LINK = link_info()
-if LINK["kind"] != "ble-serial":
-    raise NotImplementedError(f"link kind {LINK['kind']!r} is not implemented in Python yet")
+LINK = next((l for l in links_info() if l["kind"] == "ble-serial"), None)
+if LINK is None:
+    raise NotImplementedError("this driver has no link kind that Python implements (ble-serial)")
 SERVICE, RX, TX = LINK["service"], LINK["rx"], LINK["tx"]   # RX: write to robot, TX: notifications
 
 

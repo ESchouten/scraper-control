@@ -381,7 +381,8 @@ class RobotController(
       set(LinkState.Searching)
       val found = p.type.discover(p.robotName.ifEmpty { null })
       if (found.isEmpty()) throw NoRobot()
-      p = p.copy(robotId = found.first().id, robotName = p.robotName.ifEmpty { found.first().name })
+      val f = found.first()
+      p = p.copy(robotId = f.id, robotName = p.robotName.ifEmpty { f.name }, link = f.link)
       settings.update(p)
       save()
     }

@@ -47,7 +47,7 @@ object LelyDiscovery : ScraperModel() {
       delay(sim.scanDelayMs)
       return sim.robots.map { FoundScraper(it.id, it.name, it.rssi) }
     }
-    return driverLink.scan(name).map { FoundScraper(it.id, it.name, it.rssi) }
+    return scanRobots(name).map { FoundScraper(it.id, it.name, it.rssi, it.kind) }
   }
 
   override fun openSession(p: RobotProfile, onStep: (RunStep) -> Unit, onChanged: (RobotProfile) -> Unit): LelySession =
@@ -139,7 +139,7 @@ class LelySession(
       }
     }
     val id = profile.robotId ?: throw ScraperException(ScraperFault.NotFound, tr.noRobotNearby)
-    val link = sim?.link?.invoke(id) ?: driverLink.open(id, profile.robotName.ifEmpty { null })
+    val link = sim?.link?.invoke(id) ?: openLink(profile.link, id, profile.robotName.ifEmpty { null })
     val r = Robot(
       link, pin = profile.pin, imageVersion = imageVersion(), language = tr.code, onStep = { onStep(RunStep(it.name)) },
       owedPlanning = owedPlanning(), onOwed = ::keepOwed,

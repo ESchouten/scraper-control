@@ -113,8 +113,8 @@ internal expect fun nativeResultText(code: Int, language: String): String
 /** The PIN as the core sends it (for the fake robots in tests). */
 internal expect fun nativeEncryptPin(pin: String): ByteArray
 
-/** How the driver's robot is reached (scraper_link_json), as JSON. */
-internal expect fun nativeLinkJson(): String
+/** How the driver's robots are reached (scraper_links_json): a JSON array, preferred first. */
+internal expect fun nativeLinksJson(): String
 
 /** The result in words, "nl" or "en". */
 internal fun coreResultText(result: CoreResult, language: String): String = nativeResultText(result.code, language)

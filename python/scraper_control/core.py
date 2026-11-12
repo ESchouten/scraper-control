@@ -67,16 +67,17 @@ def lib():
         L.scraper_result_text_lang.argtypes = [ctypes.c_int32, ctypes.c_char_p]
         L.scraper_result_text_lang.restype = ctypes.c_char_p
         L.scraper_set_language.argtypes = [S, ctypes.c_char_p]
-        L.scraper_link_json.argtypes = [ctypes.c_char_p, ctypes.c_int32]
-        L.scraper_link_json.restype = ctypes.c_int32
+        L.scraper_links_json.argtypes = [ctypes.c_char_p, ctypes.c_int32]
+        L.scraper_links_json.restype = ctypes.c_int32
         _lib = L
     return _lib
 
 
-def link_info() -> dict:
-    """How the driver's robot is reached: {"kind": "ble-serial", ...} (see core/scraper_c.h)."""
-    buf = ctypes.create_string_buffer(512)
-    lib().scraper_link_json(buf, len(buf))
+def links_info() -> list[dict]:
+    """How the driver's robots are reached, preferred first: [{"kind": "ble-serial", ...}, ...]
+    (see core/scraper_c.h)."""
+    buf = ctypes.create_string_buffer(1024)
+    lib().scraper_links_json(buf, len(buf))
     return json.loads(buf.value.decode())
 
 

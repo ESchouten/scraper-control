@@ -176,9 +176,9 @@ jstring JNI_FN(nativeResultText)(JNIEnv* e, jobject, jint result, jstring lang) 
   return e->NewStringUTF(scraper_result_text_lang(result, l.c_str()));
 }
 
-jstring JNI_FN(nativeLinkJson)(JNIEnv* e, jobject) {
-  char buf[512];
-  scraper_link_json(buf, sizeof buf);
+jstring JNI_FN(nativeLinksJson)(JNIEnv* e, jobject) {
+  char buf[1024];
+  scraper_links_json(buf, sizeof buf);
   return e->NewStringUTF(buf);
 }
 

@@ -24,8 +24,8 @@ import kotlin.uuid.Uuid
 import nl.eschouten.scraper.core.RobotLink
 
 
-/** A robot found nearby. */
-data class FoundRobot(val id: String, val name: String, val rssi: Int)
+/** A robot found nearby, over link [kind] (LinkSpec.kind; "" = the driver's preferred). */
+data class FoundRobot(val id: String, val name: String, val rssi: Int, val kind: String = "")
 
 /** Why Bluetooth cannot be used right now. */
 enum class BluetoothProblem { Off, Denied, Unsupported }
@@ -57,7 +57,7 @@ suspend fun findRobots(spec: LinkSpec.BleSerial, name: String? = null, timeoutMs
     robotScanner().advertisements.collect { a ->
       if (spec.matches(a, name)) {
         val id = a.identifier.toString()
-        found[id] = FoundRobot(id, a.name ?: a.peripheralName ?: "", a.rssi)
+        found[id] = FoundRobot(id, a.name ?: a.peripheralName ?: "", a.rssi, spec.kind)
       }
     }
   }

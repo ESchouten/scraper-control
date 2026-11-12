@@ -78,7 +78,7 @@ class OnboardingFlow(private val controller: RobotController, val platform: Plat
   suspend fun pick(id: String) {
     scan.select(id)
     val f = scan.selected ?: return
-    controller.updateRobot(controller.state.value.robot.copy(robotId = f.id, robotName = f.name))
+    controller.updateRobot(controller.state.value.robot.copy(robotId = f.id, robotName = f.name, link = f.link))
   }
 
   fun setPin(p: String) {
@@ -206,7 +206,7 @@ class AddRobotFlow(private val controller: RobotController, platform: Platform) 
     val f = scan.selected ?: return tr.noRobotNearby
     val st = _state.value
     _state.value = st.copy(saving = true)
-    controller.addRobot(RobotProfile(model = st.modelId, robotId = f.id, robotName = f.name, label = st.label.trim(), pin = st.pin.trim()))
+    controller.addRobot(RobotProfile(model = st.modelId, robotId = f.id, robotName = f.name, link = f.link, label = st.label.trim(), pin = st.pin.trim()))
     val o = controller.refresh()
     _state.value = _state.value.copy(saving = false)
     return if (o.ok) tr.robotAdded(controller.state.value.robot.displayName) else o.message

@@ -338,8 +338,9 @@ const char* scraper_result_text_lang(int32_t r, const char* code) {
 
 }  // extern "C"
 
-int32_t scraper_link_json(char* buf, int32_t size) {
-  std::string j = std::string("{\"kind\":\"ble-serial\",\"service\":\"") + kBle.service + "\",\"rx\":\"" + kBle.rx + "\",\"tx\":\"" + kBle.tx +
-                  "\",\"addressPrefix\":\"" + kBle.addressPrefix + "\"}";
+int32_t scraper_links_json(char* buf, int32_t size) {
+  std::string j = std::string("[{\"kind\":\"ble-serial\",\"service\":\"") + kBle.service + "\",\"rx\":\"" + kBle.rx + "\",\"tx\":\"" + kBle.tx +
+                  "\",\"addressPrefix\":\"" + kBle.addressPrefix + "\"}," +
+                  "{\"kind\":\"bt-serial\",\"service\":\"" + kSppService + "\",\"addressPrefix\":\"" + kBle.addressPrefix + "\"}]";
   return copyOut(j, buf, size);
 }

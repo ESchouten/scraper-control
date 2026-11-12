@@ -25,6 +25,15 @@ class SettingsTest {
     assertEquals("4321", store.getSecret("pin.abcd1234"))
   }
 
+  @Test fun linkKindIsRememberedAndOlderSettingsUseThePreferred() {
+    val store = MemoryStore(mapOf("robots" to """[{"uid":"abcd1234","robotId":"00:12:FF:51:4D:00"}]"""))
+    val s = Settings.load(store)
+    assertEquals("", s.robot.link)   // older settings: the driver's preferred kind
+    s.updateRobot { it.copy(link = "bt-serial") }
+    s.save(store)
+    assertEquals("bt-serial", Settings.load(store).robot.link)
+  }
+
   @Test fun removedRobotLosesItsPin() {
     val store = MemoryStore()
     val s = Settings.single(pin = "4321")

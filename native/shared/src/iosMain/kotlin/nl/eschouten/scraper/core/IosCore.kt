@@ -40,7 +40,7 @@ import nl.eschouten.scraper.core.c.scraper_result_text_lang
 import nl.eschouten.scraper.core.c.scraper_set_language
 import nl.eschouten.scraper.core.c.scraper_set_planning
 import nl.eschouten.scraper.core.c.scraper_start_route
-import nl.eschouten.scraper.core.c.scraper_link_json
+import nl.eschouten.scraper.core.c.scraper_links_json
 import nl.eschouten.scraper.core.c.scraper_status_json
 import nl.eschouten.scraper.core.c.scraper_stop_route
 import nl.eschouten.scraper.core.c.scraper_answer_stop
@@ -118,8 +118,8 @@ internal actual fun nativeEncryptPin(pin: String): ByteArray = memScoped {
   buf.reinterpret<ByteVar>().readBytes(n)
 }
 
-internal actual fun nativeLinkJson(): String = memScoped {
-  val buf = allocArray<ByteVar>(512)
-  scraper_link_json(buf, 512)
+internal actual fun nativeLinksJson(): String = memScoped {
+  val buf = allocArray<ByteVar>(1024)
+  scraper_links_json(buf, 1024)
   buf.toKString()
 }

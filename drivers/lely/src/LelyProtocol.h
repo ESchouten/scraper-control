@@ -15,6 +15,9 @@ namespace lely {
 struct BleInfo { const char* service; const char* rx; const char* tx; const char* addressPrefix; };
 constexpr BleInfo kBle = {"6e400001-b5a3-f393-e0a9-e50e24dcca9e", "6e400002-b5a3-f393-e0a9-e50e24dcca9e",
                           "6e400003-b5a3-f393-e0a9-e50e24dcca9e", "00:12:ff"};
+// Older robots speak classic Bluetooth instead: the serial port profile (SPP), the same
+// address prefix and the same frames.
+constexpr const char* kSppService = "00001101-0000-1000-8000-00805f9b34fb";
 
 using Bytes = std::vector<uint8_t>;
 

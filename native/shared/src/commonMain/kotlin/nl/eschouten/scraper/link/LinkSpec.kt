@@ -1,40 +1,73 @@
-// How a robot is reached, as its driver describes it (scraper_link_json, core/scraper_c.h).
-// Each kind is implemented once per platform; a driver that talks another way (another BLE
-// service, wifi) adds a kind here and its link next to BleSerialLink.
+// How a robot is reached, as its driver describes it (scraper_links_json, core/scraper_c.h): a
+// list of kinds, preferred first. Each kind is implemented once per platform, or not at all
+// there (a scan skips it); a driver that talks another way adds a kind here and its link.
 package nl.eschouten.scraper.link
 
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import nl.eschouten.scraper.core.RobotLink
-import nl.eschouten.scraper.core.nativeLinkJson
+import nl.eschouten.scraper.core.nativeLinksJson
 
 sealed class LinkSpec {
+  abstract val kind: String
+
   /** A serial BLE service: write to [rx] without response, notifications from [tx]. */
-  data class BleSerial(val service: String, val rx: String, val tx: String, val addressPrefix: String) : LinkSpec()
+  data class BleSerial(val service: String, val rx: String, val tx: String, val addressPrefix: String) : LinkSpec() {
+    override val kind get() = BLE
+  }
+
+  /** Classic Bluetooth: an RFCOMM socket to [service], a byte stream both ways. */
+  data class BtSerial(val service: String, val addressPrefix: String) : LinkSpec() {
+    override val kind get() = BT
+  }
 
   companion object {
-    fun parse(json: String): LinkSpec {
-      val o: JsonObject = Json.parseToJsonElement(json).jsonObject
+    const val BLE = "ble-serial"
+    const val BT = "bt-serial"
+
+    /** The driver's list; a kind the apps do not know is left out. */
+    fun parseList(json: String): List<LinkSpec> = Json.parseToJsonElement(json).jsonArray.mapNotNull { e ->
+      val o = e.jsonObject
       fun s(k: String) = o[k]?.jsonPrimitive?.content ?: ""
-      return when (val kind = s("kind")) {
-        "ble-serial" -> BleSerial(s("service"), s("rx"), s("tx"), s("addressPrefix").lowercase())
-        else -> error("link kind '$kind' is not implemented in the apps yet")
+      when (s("kind")) {
+        BLE -> BleSerial(s("service"), s("rx"), s("tx"), s("addressPrefix").lowercase())
+        BT -> BtSerial(s("service"), s("addressPrefix").lowercase())
+        else -> null
       }
     }
   }
 }
 
-/** How this build's robot driver is reached. */
-val driverLink: LinkSpec by lazy { LinkSpec.parse(nativeLinkJson()) }
+/** How this build's robot driver is reached, preferred first. */
+val driverLinks: List<LinkSpec> by lazy { LinkSpec.parseList(nativeLinksJson()) }
 
-/** Robots of this kind nearby, strongest first. [name]: the advertised name, if known. */
-suspend fun LinkSpec.scan(name: String? = null): List<FoundRobot> = when (this) {
-  is LinkSpec.BleSerial -> findRobots(this, name)
+/** Classic Bluetooth robots nearby (by [spec]'s address prefix); empty where the platform has none. */
+internal expect suspend fun findClassicRobots(spec: LinkSpec.BtSerial): List<FoundRobot>
+
+/** A classic Bluetooth link to [id]; null where the platform has none. */
+internal expect fun btSerialLink(spec: LinkSpec.BtSerial, id: String): RobotLink?
+
+/** Robots nearby over every kind this platform can do, at once. A robot found over more than
+ *  one keeps the driver's preferred kind. Strongest first. [name]: the advertised name, if known. */
+suspend fun scanRobots(name: String? = null): List<FoundRobot> = coroutineScope {
+  driverLinks.map { spec ->
+    async {
+      when (spec) {
+        is LinkSpec.BleSerial -> findRobots(spec, name)
+        is LinkSpec.BtSerial -> findClassicRobots(spec)
+      }
+    }
+  }.awaitAll().flatten().distinctBy { it.id.lowercase() }.sortedByDescending { it.rssi }
 }
 
-/** A link to the robot remembered as [id]. */
-fun LinkSpec.open(id: String, name: String? = null): RobotLink = when (this) {
-  is LinkSpec.BleSerial -> BleSerialLink(this, id, name)
-}
+/** A link to the robot remembered as [id], found over [kind] ("" = the driver's preferred kind). */
+fun openLink(kind: String, id: String, name: String? = null): RobotLink =
+  when (val spec = driverLinks.firstOrNull { kind.isEmpty() || it.kind == kind } ?: error("link kind '$kind' is not known to this app")) {
+    is LinkSpec.BleSerial -> BleSerialLink(spec, id, name)
+    is LinkSpec.BtSerial -> btSerialLink(spec, id) ?: error("classic Bluetooth is not available on this device")
+  }

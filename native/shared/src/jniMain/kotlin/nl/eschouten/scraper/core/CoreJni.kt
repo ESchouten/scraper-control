@@ -25,7 +25,7 @@ internal object CoreJni {
   external fun nativeSetLanguage(h: Long, language: String)
   external fun nativeResultText(result: Int, language: String): String
   external fun nativeEncryptPin(pin: String): ByteArray
-  external fun nativeLinkJson(): String
+  external fun nativeLinksJson(): String
 }
 
 private class JniCore(private val h: Long) : CoreNative {
@@ -58,4 +58,4 @@ internal actual fun nativeResultText(code: Int, language: String): String = Core
 
 internal actual fun nativeEncryptPin(pin: String): ByteArray = CoreJni.nativeEncryptPin(pin)
 
-internal actual fun nativeLinkJson(): String = CoreJni.nativeLinkJson()
+internal actual fun nativeLinksJson(): String = CoreJni.nativeLinksJson()

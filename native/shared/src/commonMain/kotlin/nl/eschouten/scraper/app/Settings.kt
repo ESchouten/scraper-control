@@ -30,6 +30,7 @@ data class RobotProfile(
   val uid: String = newUid(), // stable id inside the app (widgets refer to it)
   val model: String = defaultModelId, // ScraperModel.id
   val robotId: String? = null, // address: MAC (Android/Windows/Linux) or UUID (iOS/macOS)
+  val link: String = "", // how it was found (link/LinkSpec kind); "" = the driver's preferred
   val robotName: String = "", // advertised name; helps on iOS/macOS
   val label: String = "", // own name, e.g. "Stal 2"
   val pin: String = "",

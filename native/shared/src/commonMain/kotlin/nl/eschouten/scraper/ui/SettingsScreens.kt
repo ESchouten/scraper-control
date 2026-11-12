@@ -277,4 +277,4 @@ fun deviceScan(s: ControllerState, uid: String, platform: Platform): ScanFlow? {
 
 /** Save the chosen device on a robot (the device picker in robot settings). */
 fun RobotProfile.withDevice(f: FoundScraper): RobotProfile =
-  if (f.id == robotId) this else copy(robotId = f.id, robotName = f.name, snapshot = null)
+  if (f.id == robotId) this else copy(robotId = f.id, robotName = f.name, link = f.link, snapshot = null)

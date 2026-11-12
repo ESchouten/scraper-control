@@ -3,7 +3,7 @@
  * uses the driver's C++ API directly.
  *
  * The driver works with bytes in and bytes out; how they travel is the host's job. The host
- * opens the link the driver asks for (scraper_link_json) and then:
+ * opens one of the links the driver lists (scraper_links_json) and then:
  *   s = scraper_new(pin, version, on_write, on_done, user)
  *   bytes from the robot     -> scraper_feed(s, bytes, n)      (any thread)
  *   on_write(user, bytes, n) -> send them to the robot, then scraper_release(bytes)
@@ -131,12 +131,15 @@ SCRAPER_API const char* scraper_result_text_lang(int32_t result, const char* lan
  * "language": the robot's own language ("nl", "en" or "" if not known). */
 SCRAPER_API void scraper_set_language(scraper_session* s, const char* language);
 
-/* How to find and reach this driver's robot, as JSON with a "kind" and its details.
- * Hosts implement each kind once; a driver that talks another way names a new kind.
+/* How to find and reach this driver's robots: a JSON array, most preferred first, of objects
+ * with a "kind" and its details. Hosts implement each kind once and use the kinds they can;
+ * a driver that talks another way names a new kind.
  *   "ble-serial": {"service", "rx", "tx" (UUIDs), "addressPrefix" (lower case, "" = any)}:
  *                 write to rx without response, notifications from tx.
- * Copies into buf like scraper_status_json. */
-SCRAPER_API int32_t scraper_link_json(char* buf, int32_t size);
+ *   "bt-serial":  {"service" (the RFCOMM service UUID), "addressPrefix"}: classic Bluetooth,
+ *                 a byte stream both ways.
+ * The bytes are the same over every kind. Copies into buf like scraper_status_json. */
+SCRAPER_API int32_t scraper_links_json(char* buf, int32_t size);
 
 #ifdef __cplusplus
 }
