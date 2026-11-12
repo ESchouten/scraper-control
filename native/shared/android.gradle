@@ -11,7 +11,7 @@ kotlin {
   }
   sourceSets {
     androidMain {
-      kotlin.srcDir('src/jniMain/kotlin')   // the Bluetooth permissions: androidApp's manifest
+      kotlin.srcDir('src/jniMain/kotlin')   // JNI bridge, stream link; the Bluetooth permissions: androidApp's manifest
     }
   }
 }

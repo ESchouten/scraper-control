@@ -62,7 +62,7 @@ kotlin {
       implementation(kotlin("test"))
       implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
     }
-    // JNI code is the same for Android and desktop
+    // the same JVM code for Android and desktop: the JNI bridge, the stream link
     jvmMain { kotlin.srcDir("src/jniMain/kotlin") }
   }
 }
