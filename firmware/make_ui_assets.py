@@ -39,6 +39,7 @@ FONTS = {
     "ui_font_bold": (600, 16, True),
     "ui_font_title": (700, 22, True),
     "ui_font_big": (700, 32, False),
+    "ui_font_small": (600, 12, False),
     "ui_font_icon": (None, 30, True),
 }
 

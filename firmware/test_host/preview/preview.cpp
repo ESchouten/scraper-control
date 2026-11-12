@@ -46,6 +46,8 @@ static void all() {
   seen = Status(); seen.planning = 1; seen.nextRide = "21:00"; seen.clock = "08:00:00"; seen.batteryMv = 25400;
   seenAt = now; haveSeen = true; now += 12 * 60000;
   idle(); shot("1b-start-gezien");
+  idle(); ui::fillHold(0, 900); shot("1c-start-vasthouden");   // left held 0.9 s: filling up
+  syncing = true; idle(); shot("1d-start-lezen"); syncing = false;
   haveSeen = false;
   drawProgress(rb, nextStep(Kind::Route, int(Step::ScreenReady), true), 3, 8); shot("2-bezig");
   Status st;
@@ -59,6 +61,7 @@ static void all() {
   drawResult("Status", true, tx->robotStatus, st, ""); shot("5-status");
   ManualState m; m.left = 1; m.right = 0; m.forward = 1;
   drawManual(m, false); shot("7-handbediening");
+  drawManual(m, false); ui::fillHold(0, 1100); shot("7b-handbediening-klaar");
   m.right = 1;
   drawManual(m, true); shot("8-rijden");
   PinEditor e("4321"); e.next();

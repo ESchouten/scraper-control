@@ -77,14 +77,17 @@ static const Texts* tx = &kNl;     // screen language: the robot's, seen at the 
 static int owedPlanning = -1;
 static uint32_t owedAt = 0;
 static const uint32_t kOwedForMs = 6UL * 3600UL * 1000UL;
+// The robot as the M5 last saw it (RAM only): the home screen shows it, with its age.
+// Read at every command and every 15 minutes in the background (syncTick).
+static Status seen;
+static uint32_t seenAt = 0, homeDrawnAt = 0;
+static bool haveSeen = false, syncing = false;
+
 // Screen: dims after a minute without a press, never off (Erik 2026-11-11), so a press always
 // acts at once (a stop too). The backlight is far from linear: 64 still looked full, so dim low.
-// The robot as the M5 last saw it (RAM only): the home screen shows it, with its age.
-static Status seen;
-static uint32_t seenAt = 0;
-static bool haveSeen = false;
 
 static const uint8_t kBright = 160, kDim = 20;
+static const uint32_t kResultMs = 20000;   // a result closes by itself after this
 static uint32_t lastActive = 0;
 static int dimLevel = 0;   // 0 bright, 1 dim
 
@@ -135,9 +138,11 @@ static void settingRow(int i, const char* icon, const String& label, const Strin
 
 static String volts(int mv) { return String(mv / 1000) + (tx == &kNl ? "," : ".") + String(mv % 1000 / 100) + " V"; }
 
-// Home: the robot as last seen, the three hold actions (white) and the three routes (red).
+// Home: the robot as last seen (status only, no instructions), the three hold keys (outlined,
+// they fill up while held) and the three routes (red: a tap starts or stops that route).
 static void idle() {
   using namespace ui;
+  homeDrawnAt = millis();
   ui::Screen scr("Scraper Control");
   card(10, 56, 300, 54, kCard);
   if (haveSeen) {
@@ -150,34 +155,22 @@ static void idle() {
       iconText(ICON_BATTERY, v, 298 - w, 62, kBody, kMuted, kMuted, 6);
     }
     String next = nextRideNow();
-    String a = ago(millis() - seenAt);
+    String a = syncing ? String(ICON_SYNC) : ago(millis() - seenAt);
     int aw = textW(a, kBody);
     if (next.length()) {   // drop the word "next run" when the time and the age would touch
       String n = String(tx->nextRide) + " " + next;
       if (20 + textW(ICON_CLOCK, kBody) + 4 + textW(n, kBody) > 298 - aw - 12) n = next;
       iconText(ICON_CLOCK, n, 20, 84, kBody, kMuted, kMuted, 4);
     }
-    text(a, 298 - aw, 84, kBody, kMuted);
+    text(a, 298 - aw, 84, kBody, syncing ? kRed : kMuted);
   } else {
-    disc(20, 64, 38, ICON_ROBOT, kRedSoft, kRed);
-    text(tx->homeReady, 68, 60, kBold, kInk);
-    wrap(tx->homeHint, 68, 80, 232, kBody, kMuted, 108);
+    disc(20, 64, 38, syncing ? ICON_SYNC : ICON_ROBOT, kRedSoft, kRed);
+    text(tx->notReadYet, 68, 61, kBold, kInk);
+    text(tx->readEvery, 68, 83, kBody, kMuted);
   }
-  // hold 1.5 s: icon over the word, in white keys
   const char* hold[3] = {tx->holdPlanning, tx->holdManual, tx->holdPin};
   const char* icon[3] = {ICON_CALENDAR, ICON_HAND, ICON_GEAR};
-  for (int i = 0; i < 3; i++) {
-    box(kBtnX[i] - 47, 118, 94, 46, 12, kCard, kLine);
-    centred(icon[i], kBtnX[i], 122, kBold, kRed);
-    centred(hold[i], kBtnX[i], 141, kBold, kInk);
-  }
-  String gap = "      ";
-  String legend;
-  do {   // as much air between the two as fits
-    legend = String(ICON_UP) + " " + tx->holdPress + gap + ICON_DOWN + " " + tx->tapHint;
-    gap = gap.substring(1);
-  } while (gap.length() > 1 && textW(legend, kBody) > 300);
-  centred(legend, kW / 2, 169, kBody, kMuted);
+  for (int i = 0; i < 3; i++) holdKey(i, 116, 64, tx->holdWord, icon[i], hold[i]);
   const char r[3] = {ROUTE_BTN_A, ROUTE_BTN_B, ROUTE_BTN_C};
   String label[3];
   Pill style[3];
@@ -221,7 +214,6 @@ static void drawProgress(const String& title, const String& now, int done, int t
   int y = wrap(now, 80, 68, 220, kTitle, kInk, 126);
   text(String(tx->stepOf) + " " + String(done + 1 > total ? total : done + 1) + " " + tx->of + " " + String(total), 80, y + 2, kBody, kMuted);
   progressBar(24, 164, 272, done, total);
-  hint(tx->pleaseWait);
 }
 
 // Only the fields the robot's current screen shows (while driving, planning and
@@ -249,10 +241,11 @@ static void drawResult(const String& title, bool ok, const String& heading, cons
   int y = wrap(heading, 74, 66, 226, kTitle, ok ? kOk : kErr, 116);
   if (ok) statusRows(st, y < 112 ? 112 : y + 4, 190);
   else wrap(detail, 24, y < 108 ? 108 : y + 2, 272, kBody, kInk, 192);   // four lines fit under a one-line heading
-  hint(tx->pressAnyButton);
+  closeHint(tx->pressAnyButton, kResultMs);
 }
 
 // ---- manual drive screen ---------------------------------------------------------
+static const uint32_t kDriveAfterMs = 400;   // middle held this long: drive (while held)
 // Three tiles above the buttons with what each one switches, the drive state below.
 static void drawManual(const ManualState& m, bool driving) {
   using namespace ui;
@@ -270,18 +263,15 @@ static void drawManual(const ManualState& m, bool driving) {
     if (*ic) centred(ic, kBtnX[i], 82, kBold, green ? kOk : i == 1 ? kRed : kMuted);
     centred(v, kBtnX[i], 101, kBold, green ? kOk : kInk);
   }
-  if (driving) {
-    box(10, 132, 300, 30, 15, kRed);
-    centred(String(ICON_PLAY) + "  " + tx->drivingRelease, kW / 2, 138, kBold, kWhite);
-  } else {
-    centred(tx->holdToDrive, kW / 2, 138, kBody, kMuted);
-  }
-  // hold labels (white) and short-press labels (red), as on the home screen
-  const char* hold[3] = {tx->done, tx->drive, ""};
-  const char* holdIcon[3] = {ICON_OK, ICON_PLAY, ""};
-  for (int i = 0; i < 2; i++) {
-    box(kBtnX[i] - 47, 168, 94, 30, 12, kCard, kLine);
-    centred(String(holdIcon[i]) + " " + hold[i], kBtnX[i], 173, kBold, kInk);
+  if (driving) {   // only one thing matters now
+    lv_obj_t* b = box(10, 134, 300, 60, 14, kRed);
+    lv_obj_set_style_bg_grad_color(b, col(kRedDeep), 0);
+    lv_obj_set_style_bg_grad_dir(b, LV_GRAD_DIR_VER, 0);
+    centred(String(ICON_PLAY) + "  " + tx->driving, kW / 2, 141, kTitle, kWhite);
+    centred(tx->releaseToStop, kW / 2, 168, kBody, kWhite);
+  } else {   // hold keys, as on the home screen: left held = done, middle held = drive
+    holdKey(0, 134, 60, tx->holdWord, ICON_OK, tx->done);
+    holdKey(1, 134, 60, tx->holdWord, ICON_PLAY, tx->drive, kDriveAfterMs);
   }
   String label[3] = {tx->motorL, tx->direction, tx->motorR};
   Pill style[3] = {Pill::Primary, Pill::Primary, Pill::Primary};
@@ -309,7 +299,7 @@ static void drawPin(const PinEditor& e, const String& why) {
     centred(c, x + bw / 2, 123 - h / 2, i < n ? f : kBold, cur ? kRed : kInk);
     x += bw + gap;
   }
-  text(tx->holdToCancel, 22, 162, kBody, kMuted);
+  holdKey(1, 156, 30, tx->holdWord, ICON_CLOSE, tx->cancelWord);
   bool ok = e.onOk();
   String label[3] = {ok ? String(tx->digitMinus) : String(ICON_MINUS), ok ? String(ICON_OK) + " OK" : String(tx->next) + " " + ICON_NEXT,
                      ok ? String(tx->digitPlus) : String(ICON_PLUS)};
@@ -328,7 +318,7 @@ static bool editPin(const String& why) {
     if (M5.BtnC.wasPressed()) { e.plus(); lastInput = millis(); drawPin(e, why); }
     if (M5.BtnB.wasPressed()) { middleDown = millis(); lastInput = middleDown; }
     bool cancel = millis() - lastInput > 60000 ||
-                  (middleDown && M5.BtnB.isPressed() && millis() - middleDown >= 1500);
+                  (middleDown && M5.BtnB.isPressed() && millis() - middleDown >= ui::kHoldMs);
     if (cancel) {
       while (M5.BtnB.isPressed()) { M5.update(); delay(10); }
       return false;
@@ -404,9 +394,9 @@ static Result runOnce(const String& title, Kind kind, const Job& job, Status& st
   return r;
 }
 
-// Show the result until a button is pressed (that press does nothing else) or 20 s.
+// Show the result until a button is pressed (that press does nothing else) or kResultMs.
 static void waitForButton() {
-  uint32_t until = millis() + 20000;
+  uint32_t until = millis() + kResultMs;
   while ((int32_t)(millis() - until) < 0) {
     M5.update();
     if (M5.BtnA.wasPressed() || M5.BtnB.wasPressed() || M5.BtnC.wasPressed()) {
@@ -475,7 +465,7 @@ static Result manualSession(Robot& r) {
     for (int i = 0; i < 3; i++)
       if (btn[i]->wasPressed()) { down[i] = millis(); last = down[i]; }
     // middle held: drive while it stays down
-    if (!drive && down[1] && M5.BtnB.isPressed() && millis() - down[1] >= 400 && r.driveBegin() == Result::Ok) {
+    if (!drive && down[1] && M5.BtnB.isPressed() && millis() - down[1] >= kDriveAfterMs && r.driveBegin() == Result::Ok) {
       drive = true;
       driveSince = millis();
       drawManual(r.manualState(), drive);
@@ -490,7 +480,7 @@ static Result manualSession(Robot& r) {
     if (drive) { r.driveHold(20); continue; }
     for (int i = 0; i < 3; i++) {
       // left held 1.5 s = done, at once while still held (like the home screen)
-      if (i == 0 && down[0] && M5.BtnA.isPressed() && millis() - down[0] >= 1500) {
+      if (i == 0 && down[0] && M5.BtnA.isPressed() && millis() - down[0] >= ui::kHoldMs) {
         M5.Speaker.tone(1500, 60);
         return r.exitManual();
       }
@@ -635,7 +625,7 @@ static void notice(const String& title, const String& what, int tone) {
     } else {
       wrap(what, 22, 70, 276, kBold, kInk, 186);
     }
-    hint(tx->pressAnyButton);
+    closeHint(tx->pressAnyButton, kResultMs);
   }   // shown here
   if (tone) M5.Speaker.tone(tone == 1 ? 2000 : 400, 120);
   waitForButton();
@@ -726,20 +716,20 @@ static void drawTyping(const TextEditor& e, const String& ssid) {
   iconText(ICON_WIFI, String(tx->passwordFor) + " " + ssid, 22, 63, kBody, kMuted, kRed, 6);
   String shown = String(e.text().c_str());
   while (shown.length() > 0 && textW(shown + "_", kBold) > 268) shown = shown.substring(1);   // the end if long
-  box(18, 86, 284, 30, 8, kChip);
-  text(shown + "_", 26, 93, kBold, kInk);
+  box(18, 84, 284, 28, 8, kChip);
+  text(shown + "_", 26, 89, kBold, kInk);
   const int w = 54, gap = 4;
   for (int k = -2; k <= 2; k++) {
     int i = (e.cursor() + k + e.size()) % e.size();
     bool cur = k == 0;
     int x = 160 + k * (w + gap) - w / 2;
-    box(x, 124, w, 42, 12, cur ? kRedSoft : kBg, cur ? kRed : kLine, cur ? 2 : 1);
+    box(x, 118, w, 40, 12, cur ? kRedSoft : kBg, cur ? kRed : kLine, cur ? 2 : 1);
     std::string l = e.label(i);
     String s = l == " " ? String(tx->spaceWord) : String(l.c_str());
     Font f = l.size() == 1 && l != " " ? kTitle : kBold;
-    centred(s, x + w / 2, 145 - fontH(f) / 2, f, cur ? kRed : kInk);
+    centred(s, x + w / 2, 138 - fontH(f) / 2, f, cur ? kRed : kInk);
   }
-  text(tx->holdToCancel, 22, 170, kBody, kMuted);
+  holdKey(1, 162, 26, tx->holdWord, ICON_CLOSE, tx->cancelWord);
 }
 
 static bool typePassword(const String& ssid, String& out) {
@@ -757,7 +747,7 @@ static bool typePassword(const String& ssid, String& out) {
     if (!M5.BtnA.isPressed()) heldA = 0;
     if (!M5.BtnC.isPressed()) heldC = 0;
     if (M5.BtnB.wasPressed()) { middleDown = now; lastInput = now; }
-    if (now - lastInput > 180000 || (middleDown && M5.BtnB.isPressed() && now - middleDown >= 1500)) {
+    if (now - lastInput > 180000 || (middleDown && M5.BtnB.isPressed() && now - middleDown >= ui::kHoldMs)) {
       waitAllReleased();
       return false;
     }
@@ -1159,6 +1149,50 @@ static void autoUpdateTick() {
   }
 }
 
+// ---- reading the robot in the background (Erik 2026-11-12) -------------------------------
+// So the home screen always shows the robot as it is now: every 15 minutes, on the home
+// screen, the M5 connects, reads the robot's screen and disconnects. A few seconds; it never
+// presses a key (no finish(): that can press keys) and never answers a question. Not while
+// someone uses the M5 (2 minutes after a press), not while a planning is still owed to the
+// robot, not while the wifi looks for an update. Robot out of reach, or another app is
+// connected (the robot takes one connection at a time): try again in an hour.
+static const uint32_t kSyncEveryMs = 15UL * 60 * 1000, kSyncRetryMs = 60UL * 60 * 1000;
+static uint32_t nextSync = 15000;   // the first read soon after starting
+
+static bool readRobotQuietly() {
+  BleSerialLink link(savedAddress.empty() ? ROBOT_ADDRESS : savedAddress, ROBOT_NAME);
+  Robot robot(link, encryptPin(pin.c_str()), storedVersion);
+  robot.lang = langFromCode(tx->code);
+  robot.log = [](const std::string& s) { Serial.println(s.c_str()); };
+  Result r = robot.connect();
+  Status st = robot.status();
+  robot.disconnect();
+  if (r != Result::Ok || (st.planning != 0 && st.planning != 1)) return false;
+  seen = st;
+  seenAt = millis();
+  haveSeen = true;
+  followRobotLanguage(st);
+  if (robot.imageVersionChanged()) prefs.putBytes("imgver", storedVersion, 9);
+  return true;
+}
+
+static void syncTick() {
+  uint32_t now = millis();
+  if ((int32_t)(now - nextSync) < 0) return;
+  bool inUse = now - lastActive < 120000;
+  bool owed = owedPlanning >= 0 && now - owedAt < kOwedForMs;
+  if (inUse || owed || autoConnecting || pin.isEmpty()) {
+    nextSync = now + 60000;   // look again in a minute
+    return;
+  }
+  syncing = true;
+  idle();   // a small sync mark where the age is
+  bool ok = readRobotQuietly();
+  syncing = false;
+  nextSync = millis() + (ok ? kSyncEveryMs : kSyncRetryMs);
+  idle();
+}
+
 // ---- update from a Mac (ArduinoOTA): pio run -e m5stack-core-ota -t upload --------------
 static void otaUpdate() {
   using namespace ui;
@@ -1219,7 +1253,7 @@ static void wifiMenu() {
     if (M5.BtnA.wasReleased()) { chooseNetwork(); return; }
     if (M5.BtnB.wasReleased()) { wpsSetup(); return; }
     if (M5.BtnC.wasPressed()) rightDown = millis();
-    if (rightDown && M5.BtnC.isPressed() && millis() - rightDown >= 1500) {
+    if (rightDown && M5.BtnC.isPressed() && millis() - rightDown >= ui::kHoldMs) {
       M5.Speaker.tone(1500, 60);
       waitAllReleased();
       otaUpdate();
@@ -1329,11 +1363,16 @@ void loop() {
   }
   dimWhenIdle();
   autoUpdateTick();
+  syncTick();
+  // the age on the home screen ("12 min ago") stays true; not while a button is down
+  if (haveSeen && millis() - homeDrawnAt > 60000 && !M5.BtnA.isPressed() && !M5.BtnB.isPressed() &&
+      !M5.BtnC.isPressed())
+    idle();
   const char routes[3] = {ROUTE_BTN_A, ROUTE_BTN_B, ROUTE_BTN_C};
   for (int i = 0; i < 3; i++) {
     if (btn[i]->wasPressed()) pressedAt[i] = millis();
     if (!pressedAt[i]) continue;
-    bool longPress = btn[i]->isPressed() && millis() - pressedAt[i] >= 1500;
+    bool longPress = btn[i]->isPressed() && millis() - pressedAt[i] >= ui::kHoldMs;
     if (!longPress && !btn[i]->wasReleased()) continue;
     pressedAt[i] = 0;
     if (!longPress) startRoute(routes[i]);

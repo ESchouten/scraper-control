@@ -8,7 +8,8 @@
 struct Texts {
   const char* code;   // "nl" / "en", for the core (Robot::lang)
   // home
-  const char *shortPress, *holdPress, *holdPlanning, *holdManual, *holdPin, *route;
+  // holdWord: the small caption on every hold key (a key that fills up while its button is held)
+  const char *holdWord, *holdPlanning, *holdManual, *holdPin, *route;
   // progress steps
   const char *connecting, *checkingPin, *waitingPanel, *readingStatus, *switchingPlanning,
       *planningOffForNow, *openingRouteMenu, *finishing, *safetyYes, *choosingRoute, *pressingStart,
@@ -19,10 +20,10 @@ struct Texts {
   const char *pressAnyButton, *started, *planningIs, *planningOnWord, *planningOffWord, *manualDone,
       *robotStatus, *checkPlanning, *routeStopped;
   // manual drive
-  const char *manual, *left, *direction, *right, *forward, *backward, *drivingRelease, *holdToDrive,
+  const char *manual, *left, *direction, *right, *forward, *backward, *driving, *releaseToStop,
       *done, *drive, *motorL, *motorR;
   // PIN
-  const char *pinTitle, *holdToCancel, *digitMinus, *digitPlus, *next, *pinRejected, *enterPin, *newPin;
+  const char *pinTitle, *cancelWord, *digitMinus, *digitPlus, *next, *pinRejected, *enterPin, *newPin;
   // settings (hold right): PIN / robot / wifi
   const char *settings, *robotWord, *updateWord, *robotRow, *automatic, *wifiRow, *notSet;
   // choose robot
@@ -40,22 +41,22 @@ struct Texts {
       *routeCancelled, *questionLeftOpen;
   // settings: looking for known wifi at once, for an update (Erik 2026-11-11)
   const char *settingsWifiLooking, *settingsWifiNone, *settingsUpToDate;
-  // home screen: the robot as last seen (printf formats: %d)
-  const char *homeReady, *homeHint, *tapHint, *justNow, *minAgo, *hourAgo;
+  // home screen: the robot as last seen, read every 15 minutes (printf formats: %d)
+  const char *notReadYet, *readEvery, *justNow, *minAgo, *hourAgo;
 };
 
 static const Texts kNl = {
     "nl",
-    "Kort: route starten / stoppen", "Houd 1,5 s", "Tijdpad", "Handbed.", "Instellen", "Route",
+    "HOUD VAST", "Tijdpad", "Handbed.", "Instellen", "Route",
     "Verbinden", "Pincode controleren", "Wachten op het paneel", "Status lezen", "Tijdpad omzetten",
     "Tijdpad tijdelijk uitzetten", "Routemenu openen", "Afronden", "Veiligheidsvraag: Ja", "Route kiezen",
     "Start indrukken", "Vraag over het tijdpad beantwoorden", "Stap", "van", "Even geduld...",
     "Tijdpad", "Aan", "Uit", "Volgende rit", "Route", "Actie", "Accu robot",
     "Druk op een knop om verder te gaan", "gestart", "Tijdpad staat", "aan", "uit", "Handbediening klaar",
     "Status van de robot", "Kijk even bij de robot en controleer het tijdpad.", "Route gestopt",
-    "Handbediening", "Links", "Richting", "Rechts", "Vooruit", "Achteruit", "RIJDT - loslaten = stoppen",
-    "Midden vasthouden = rijden", "Klaar", "Rijden", "Motor L", "Motor R",
-    "Pincode", "Midden lang vasthouden = annuleren", "Cijfer -", "Cijfer +", "Volgende",
+    "Handbediening", "Links", "Richting", "Rechts", "Vooruit", "Achteruit", "Rijdt",
+    "Loslaten om te stoppen", "Klaar", "Rijden", "Motor L", "Motor R",
+    "Pincode", "Annuleren", "Cijfer -", "Cijfer +", "Volgende",
     "Pincode geweigerd. Probeer opnieuw:", "Vul de pincode van de robot in:", "Nieuwe pincode:",
     "Instellingen", "Robot", "Update", "Robot", "automatisch (sterkste)", "Wifi", "niet ingesteld",
     "Robots zoeken...", "Geen robot gevonden. Is een andere app nog verbonden?", "Volgende", "Kiezen", "Terug",
@@ -74,22 +75,22 @@ static const Texts kNl = {
     "Ja", "Nee", "Later", "Route gaat verder", "Route afgebroken",
     "De vraag staat nog op de robot. Beantwoord hem daar, of druk weer op een routeknop.",
     "Zoekt wifi voor update...", "Geen bekende wifi in de buurt.", "Nieuwste versie, geen update.",
-    "Klaar", "Tik op een route om te starten", "Tik: start / stop", "zojuist",
+    "Nog niet gelezen", "Leest de robot elke 15 min", "zojuist",
     "%d min geleden", "%d uur geleden",
 };
 
 static const Texts kEn = {
     "en",
-    "Short: start / stop route", "Hold 1.5 s", "Schedule", "Manual", "Settings", "Route",
+    "HOLD", "Schedule", "Manual", "Settings", "Route",
     "Connecting", "Checking PIN", "Waiting for the panel", "Reading status", "Switching schedule",
     "Pausing schedule", "Opening route menu", "Finishing", "Safety question: Yes", "Choosing route",
     "Pressing Start", "Answering the schedule question", "Step", "of", "Please wait...",
     "Schedule", "On", "Off", "Next run", "Route", "Action", "Robot battery",
     "Press a button to continue", "started", "Schedule is", "on", "off", "Manual control done",
     "Robot status", "Please check the robot and its schedule.", "Route stopped",
-    "Manual control", "Left", "Direction", "Right", "Forward", "Backward", "DRIVING - release = stop",
-    "Hold middle = drive", "Done", "Drive", "Motor L", "Motor R",
-    "PIN", "Hold middle = cancel", "Digit -", "Digit +", "Next",
+    "Manual control", "Left", "Direction", "Right", "Forward", "Backward", "Driving",
+    "Release to stop", "Done", "Drive", "Motor L", "Motor R",
+    "PIN", "Cancel", "Digit -", "Digit +", "Next",
     "PIN rejected. Try again:", "Enter the robot's PIN:", "New PIN:",
     "Settings", "Robot", "Update", "Robot", "automatic (strongest)", "Wi-Fi", "not set",
     "Searching for robots...", "No robot found. Is another app still connected?", "Next", "Choose", "Back",
@@ -108,7 +109,7 @@ static const Texts kEn = {
     "Yes", "No", "Later", "Route continues", "Route cancelled",
     "The question is still on the robot. Answer it there, or press a route button again.",
     "Finding wifi for update...", "No known wifi nearby.", "Latest version, no update.",
-    "Ready", "Tap a route to start it", "Tap: start / stop", "just now",
+    "Not read yet", "Reads the robot every 15 min", "just now",
     "%d min ago", "%d h ago",
 };
 

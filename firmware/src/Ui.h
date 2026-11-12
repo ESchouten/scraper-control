@@ -28,22 +28,27 @@ LV_FONT_DECLARE(ui_font_bold)
 LV_FONT_DECLARE(ui_font_title)
 LV_FONT_DECLARE(ui_font_big)
 LV_FONT_DECLARE(ui_font_icon)
+LV_FONT_DECLARE(ui_font_small)
 LV_IMAGE_DECLARE(ui_logo);
 }
 
 namespace ui {
 // ---- the app's colours (0xRRGGBB) and fonts -----------------------------------------------
 using Color = uint32_t;
-const Color kRed = 0xC8102E, kRedDeep = 0x9B0C24, kRedSoft = 0xFFE5E7;
+const Color kRed = 0xC8102E, kRedDeep = 0x9B0C24, kRedSoft = 0xFFE5E7, kRedFill = 0xFFCCD2;
 const Color kBg = 0xF6F4F3, kCard = 0xFFFFFF, kLine = 0xE4DFDE, kChip = 0xF0EDEC;
 const Color kInk = 0x1C1B1B, kMuted = 0x5E5857, kWhite = 0xFFFFFF;
 const Color kOk = 0x1B7F3B, kOkSoft = 0xE3F4E8, kErr = 0xA8200D, kErrSoft = 0xFCE8E4;
 const Color kNone = 0xFF000000;   // no fill / no border
 
 using Font = const lv_font_t*;
-// body, bold and title also hold the icons (Icons.h); kIcon is icons only, large
+// body, bold and title also hold the icons (Icons.h); kIcon is icons only, large; kSmall
+// is for captions (no icons)
 static const Font kBody = &ui_font_body, kBold = &ui_font_bold, kTitle = &ui_font_title, kBig = &ui_font_big,
-                  kIcon = &ui_font_icon;
+                  kIcon = &ui_font_icon, kSmall = &ui_font_small;
+
+// A hold action fires once its button is down this long (main.cpp uses the same).
+const uint32_t kHoldMs = 1500;
 
 const int kW = 320, kH = 240, kHeaderH = 48, kFooterY = 200;
 const int kBtnX[3] = {56, 160, 264};   // centres above the three physical buttons
@@ -71,6 +76,13 @@ static lv_obj_t* shown = nullptr;      // the screen on the display
 static char buildTitle[48], shownTitle[48];
 static lv_obj_t *buildPill[3], *shownPill[3];   // labels above the buttons, for the presses
 static bool armed[3];                            // a press is shown only once the button was up
+// Hold keys (holdKey): the outline and the fill that grows while the button is held.
+struct Hold {
+  lv_obj_t *key = nullptr, *fill = nullptr, *caption = nullptr;
+  int w = 0, full = 0;
+  uint32_t ms = kHoldMs;
+};
+static Hold buildHold[3], shownHold[3];
 static lv_obj_t *buildBar = nullptr, *shownBar = nullptr;
 static int buildBarV = -1, buildBarT = -1, shownBarV = -1, shownBarT = -1;
 
@@ -176,6 +188,7 @@ struct Screen {
     lv_obj_set_style_bg_color(building, col(kBg), 0);
     lv_obj_set_style_bg_opa(building, LV_OPA_COVER, 0);
     for (auto& p : buildPill) p = nullptr;
+    for (auto& h : buildHold) h = Hold();
     buildBar = nullptr;
     lv_obj_t* h = box(0, 0, kW, kHeaderH, 0, kRed);   // brand gradient, like the app's header
     lv_obj_set_style_bg_grad_color(h, col(kRedDeep), 0);
@@ -190,6 +203,7 @@ struct Screen {
     std::strcpy(shownTitle, buildTitle);
     for (int i = 0; i < 3; i++) {
       shownPill[i] = buildPill[i];
+      shownHold[i] = buildHold[i];
       armed[i] = false;
     }
     shownBar = buildBar;
@@ -250,6 +264,62 @@ static void pills(const String (&label)[3], const Pill (&style)[3], int y = kFoo
 }
 
 static void hint(const String& s) { centred(s, kW / 2, kFooterY + 12, kBody, kMuted); }
+
+// Under a result: the hint, and a thin bar that empties over `ms`, when the screen closes
+// by itself.
+static void closeHint(const String& s, uint32_t ms) {
+  Lock l;
+  centred(s, kW / 2, kFooterY + 6, kBody, kMuted);
+  lv_obj_t* b = lv_bar_create(parent());
+  lv_obj_remove_flag(b, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_set_pos(b, kW / 2 - 60, kFooterY + 30);
+  lv_obj_set_size(b, 120, 4);
+  lv_obj_set_style_radius(b, 2, 0);
+  lv_obj_set_style_bg_color(b, col(kLine), 0);
+  lv_obj_set_style_bg_opa(b, LV_OPA_COVER, 0);
+  lv_obj_set_style_radius(b, 2, LV_PART_INDICATOR);
+  lv_obj_set_style_bg_color(b, col(kMuted), LV_PART_INDICATOR);
+  lv_obj_set_style_bg_opa(b, LV_OPA_COVER, LV_PART_INDICATOR);
+  lv_bar_set_range(b, 0, 1000);
+  lv_bar_set_value(b, 1000, LV_ANIM_OFF);
+  if (animate) {
+    lv_obj_set_style_anim_duration(b, ms, 0);
+    lv_bar_set_value(b, 0, LV_ANIM_ON);
+  }
+}
+
+// A hold key above button i: what the button does when held. Outlined, with a small
+// caption (Texts::holdWord); while the button is held it fills up from the left and is full
+// after `ms`, when the action fires. Let go early: it empties and the tap action counts.
+// Tall (h >= 50): caption, icon, word stacked. Low: caption and word on one line.
+static void holdKey(int i, int y, int h, const char* caption, const char* icon, const String& word, uint32_t ms = kHoldMs) {
+  Lock l;
+  String w = *icon && h < 50 ? String(icon) + " " + word : word;
+  int width = 94;
+  if (h < 50) {
+    int need = textW(caption, kSmall) + 8 + textW(w, kBold) + 24;
+    if (need > width) width = need;
+  }
+  int x = kBtnX[i] - width / 2, r = h >= 50 ? 12 : h / 2;
+  Hold k;
+  k.ms = ms;
+  k.key = box(x, y, width, h, r, kCard, kLine);
+  k.fill = box(x + 1, y + 1, 0, h - 2, r - 1, kRedFill);   // inside the outline
+  k.full = width - 2;
+  lv_obj_add_flag(k.fill, LV_OBJ_FLAG_HIDDEN);
+  if (h >= 50) {
+    k.caption = text(caption, 0, y + 6, kSmall, kMuted);
+    lv_obj_set_x(k.caption, kBtnX[i] - textW(caption, kSmall) / 2);
+    if (*icon) centred(icon, kBtnX[i], y + 21, kBold, kRed);
+    centred(w, kBtnX[i], y + (*icon ? 39 : 26), kBold, kInk);
+  } else {
+    int cw = textW(caption, kSmall), tw = textW(w, kBold), x0 = kBtnX[i] - (cw + 8 + tw) / 2;
+    k.caption = text(caption, x0, y + (h - fontH(kSmall)) / 2 + 1, kSmall, kMuted);
+    text(w, x0 + cw + 8, y + (h - fontH(kBold)) / 2, kBold, kInk);
+  }
+  if (building) buildHold[i] = k;
+  else shownHold[i] = k;
+}
 
 // A large round icon (results, questions): white icon on a coloured disc of size d.
 static void disc(int x, int y, int d, const char* icon, Color fill, Color ink = kWhite) {
@@ -340,12 +410,36 @@ static void flush(lv_display_t* d, const lv_area_t* a, uint8_t* px) {
   lv_display_flush_ready(d);
 }
 
-// The labels above the buttons follow the buttons: pressed while held.
+// A hold key's fill for how long its button has been held (0 = empty).
+static void fillHold(int i, uint32_t heldMs) {
+  Hold& k = shownHold[i];
+  if (!k.key) return;
+  int w = heldMs >= k.ms ? k.full : (int)(heldMs * k.full / k.ms);
+  if (w == k.w) return;
+  bool was = k.w > 0;
+  k.w = w;
+  lv_obj_set_width(k.fill, w);
+  if (w > 0 && !was) {
+    lv_obj_remove_flag(k.fill, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_style_border_color(k.key, col(kRed), 0);
+    lv_obj_set_style_text_color(k.caption, col(kRed), 0);
+  } else if (w == 0) {
+    lv_obj_add_flag(k.fill, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_style_border_color(k.key, col(kLine), 0);
+    lv_obj_set_style_text_color(k.caption, col(kMuted), 0);
+  }
+}
+
+// The labels above the buttons follow the buttons: pressed while held; hold keys fill up.
 [[maybe_unused]] static void showPresses() {
+  static uint32_t since[3];
   m5::Button_Class* b[3] = {&M5.BtnA, &M5.BtnB, &M5.BtnC};
   for (int i = 0; i < 3; i++) {
     bool down = b[i]->isPressed();
     if (!down) armed[i] = true;   // the press that opened this screen does not count
+    if (down && armed[i] && !since[i]) since[i] = millis() | 1;
+    if (!down || !armed[i]) since[i] = 0;
+    fillHold(i, since[i] ? millis() - since[i] : 0);
     lv_obj_t* p = shownPill[i];
     if (!p) continue;
     bool show = down && armed[i];
