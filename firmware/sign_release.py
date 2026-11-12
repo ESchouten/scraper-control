@@ -1,10 +1,15 @@
-"""Signs a firmware build for the M5's own updates: writes firmware.txt next to firmware.bin.
+"""Signs a firmware build for the devices' own updates: prints its block for update.txt.
 
-    python3 firmware/sign_release.py firmware.bin --key key.pem --version 0.7.0 --build 412 > firmware.txt
-    python3 firmware/sign_release.py --message firmware.txt     # prints what the signature covers
+    python3 firmware/sign_release.py out/scraper-control-m5stack-core-1.7.0.bin --key key.pem \\
+        --version 1.7.0 --build 412 >> out/update.txt
+    python3 firmware/sign_release.py --message out/update.txt     # prints what the signatures cover
 
-The key is the ECDSA P-256 release key (CI secret FIRMWARE_SIGNING_KEY); the M5 has the public
-half in src/ReleaseKey.h. Same format as src/Manifest.h.
+update.txt holds one block per board ([m5stack-core], ...) and is the only file with a fixed
+name; each block names its firmware file. --legacy prints the old single-board firmware.txt
+instead, for M5s that still look for firmware.txt + firmware.bin (1.6.0 and older).
+
+The key is the ECDSA P-256 release key (CI secret FIRMWARE_SIGNING_KEY); the devices have the
+public half in src/ReleaseKey.h. Same format as src/Manifest.h.
 """
 import argparse
 import hashlib
@@ -14,6 +19,7 @@ import sys
 import tempfile
 
 BOARD = "m5stack-core"
+FIELDS = ("version", "build", "size", "sha256")
 
 
 def message(m):
@@ -21,7 +27,34 @@ def message(m):
 
 
 def parse(text):
-    return dict(l.split("=", 1) for l in text.splitlines() if "=" in l)
+    """{board: fields} of update.txt; a legacy firmware.txt (no blocks) gives one entry."""
+    blocks, cur = {}, None
+    for line in text.splitlines():
+        line = line.strip()
+        if line.startswith("[") and line.endswith("]"):
+            cur = blocks.setdefault(line[1:-1], {"board": line[1:-1]})
+        elif "=" in line and not line.startswith("#"):
+            k, v = line.split("=", 1)
+            if cur is None:
+                cur = blocks.setdefault("", {})
+            cur[k] = v
+    if "" in blocks:
+        legacy = blocks.pop("")
+        blocks[legacy.get("board", "")] = legacy
+    return blocks
+
+
+def sign(text, key):
+    with tempfile.TemporaryDirectory() as tmp:
+        if "BEGIN" in key:
+            path = os.path.join(tmp, "key.pem")
+            with open(path, "w") as f:
+                f.write(key)
+            key = path
+        msg = os.path.join(tmp, "msg")
+        with open(msg, "w") as f:
+            f.write(text)
+        return subprocess.check_output(["openssl", "dgst", "-sha256", "-sign", key, msg]).hex()
 
 
 def main():
@@ -31,26 +64,24 @@ def main():
     ap.add_argument("--version")
     ap.add_argument("--build", type=int)
     ap.add_argument("--board", default=BOARD)
-    ap.add_argument("--message", help="print the signed message of this manifest")
+    ap.add_argument("--legacy", action="store_true", help="print the old firmware.txt format")
+    ap.add_argument("--message", help="print the signed message of every board in this manifest")
     a = ap.parse_args()
     if a.message:
-        print(message(parse(open(a.message).read())))
+        for m in parse(open(a.message).read()).values():
+            print(message(m))
         return
     data = open(a.bin, "rb").read()
     m = {"board": a.board, "version": a.version, "build": a.build, "size": len(data), "sha256": hashlib.sha256(data).hexdigest()}
-    with tempfile.TemporaryDirectory() as tmp:
-        key = a.key
-        if "BEGIN" in key:
-            key = os.path.join(tmp, "key.pem")
-            with open(key, "w") as f:
-                f.write(a.key)
-        msg = os.path.join(tmp, "msg")
-        with open(msg, "w") as f:
-            f.write(message(m))
-        sig = subprocess.check_output(["openssl", "dgst", "-sha256", "-sign", key, msg])
-    for k in ("board", "version", "build", "size", "sha256"):
+    sig = sign(message(m), a.key)
+    if a.legacy:
+        print(f"board={a.board}")
+    else:
+        print(f"[{a.board}]")
+        print(f"file={os.path.basename(a.bin)}")
+    for k in FIELDS:
         print(f"{k}={m[k]}")
-    print(f"sig={sig.hex()}")
+    print(f"sig={sig}")
 
 
 if __name__ == "__main__":

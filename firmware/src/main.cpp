@@ -862,11 +862,12 @@ static void wpsSetup() {
 }
 
 // ---- the M5's own updates: signed releases on GitHub ----------------------------------
-// Settings > Wifi > Update: reads firmware.txt of the latest release (Manifest.h), checks
-// the signature with ReleaseKey.h, and only then downloads firmware.bin into the other app
-// slot, checking its SHA-256 on the way. Anything wrong: the current version stays.
+// Settings > Wifi > Update: reads update.txt of the latest release (Manifest.h), takes the
+// block for this board, checks its signature with ReleaseKey.h, and only then downloads the
+// file it names into the other app slot, checking its SHA-256 on the way. Anything wrong: the current version stays.
 // Holding Update 1.5 s instead waits for an update from a Mac (pio, m5stack-core-ota).
 static const char kReleaseUrl[] = "https://github.com/" FW_REPO "/releases/latest/download/";
+static const char kManifest[] = "update.txt";   // fixed name; the firmware files can change names
 
 // One line of the response, without "\r\n" ("" at the end of the headers or on a timeout).
 static String readLine(WiFiClientSecure& c, uint32_t ms = 15000) {
@@ -923,7 +924,7 @@ static bool fetchText(const String& url, String& out) {
   while (ok && (length < 0 || (long)out.length() < length) && millis() - t0 < 15000) {
     if (client.available()) {
       out += (char)client.read();
-      if (out.length() > 4096) break;   // a manifest is a few hundred bytes
+      if (out.length() > 16384) break;   // a manifest is a few hundred bytes per board
     } else if (!client.connected()) {
       break;
     } else {
@@ -953,7 +954,7 @@ static int download(const Manifest& m, bool stopOnPress = false) {
   using namespace ui;
   WiFiClientSecure client;
   long length = -1;
-  if (!httpsGet(client, String(String(kReleaseUrl) + "firmware.bin").c_str(), length) ||
+  if (!httpsGet(client, String(String(kReleaseUrl) + m.file.c_str()).c_str(), length) ||
       (length >= 0 && length != m.size) || !Update.begin((size_t)m.size)) {
     client.stop();
     return 1;
@@ -1031,8 +1032,8 @@ static bool offerUpdate(bool quiet) {
   using namespace ui;
   busy(tx->updateTitle, tx->checkingUpdate);
   String body;
-  bool got = fetchText(String(kReleaseUrl) + "firmware.txt", body);
-  Manifest m = parseManifest(body.c_str());
+  bool got = fetchText(String(kReleaseUrl) + kManifest, body);
+  Manifest m = parseManifest(body.c_str(), FW_BOARD);
   String own = String(FW_VERSION) + " (" + String(FW_BUILD) + ")";
   if (!got || !m.complete()) {
     wifiDown();
@@ -1104,8 +1105,8 @@ static void autoStop() {
 
 static void installIfNewer() {
   String body;
-  if (!fetchText(String(kReleaseUrl) + "firmware.txt", body)) return;
-  Manifest m = parseManifest(body.c_str());
+  if (!fetchText(String(kReleaseUrl) + kManifest, body)) return;
+  Manifest m = parseManifest(body.c_str(), FW_BOARD);
   if (!isUpdate(m, FW_BOARD, FW_BUILD) || !signatureOk(m)) return;
   int dim = dimLevel;
   if (dim) ui::D.setBrightness(kDim);
