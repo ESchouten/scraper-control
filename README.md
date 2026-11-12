@@ -12,13 +12,9 @@ Python script.
   stop is always answered by a person; the schedule is left the way it was found.
 
 <p>
-  <img src="docs/screenshots/app-home.png" width="200" alt="Home: routes, schedule and robot status">
-  <img src="docs/screenshots/app-start.png" width="200" alt="Starting a route">
-  <img src="docs/screenshots/app-dry-run.png" width="200" alt="A dry run that tests everything except Start">
-  <img src="docs/screenshots/app-settings.png" width="200" alt="Settings">
-</p>
-<p>
-  <img src="docs/screenshots/m5-buttons.png" width="620" alt="The M5Stack buttons: start screen, a started route and manual driving">
+  <img src="docs/screenshots/app-home.png" width="200" alt="The app: routes">
+  <img src="docs/screenshots/app-widget.png" width="290" alt="Home-screen widget">
+  <img src="docs/screenshots/m5-main.png" width="300" alt="The M5Stack buttons">
 </p>
 
 ## Supported robots
