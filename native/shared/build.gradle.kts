@@ -89,6 +89,7 @@ val buildCoreJni by tasks.registering(Exec::class) {
   inputs.dir(apiDir)
   inputs.files(secretsFile)
   outputs.dir(coreJniOut)
+  doFirst { coreJniOut.get().asFile.resolve("native").mkdirs() } // Gradle empties a task's output folder before its first run
   commandLine("cmake", "--build", coreJniWork.get().asFile.path, "--config", "Release")
 }
 kotlin.sourceSets.getByName("jvmMain").resources.srcDir(buildCoreJni.map { coreJniOut.get().asFile })
