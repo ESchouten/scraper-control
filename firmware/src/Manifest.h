@@ -1,11 +1,11 @@
-// The update manifest of a release (update.txt), no hardware code (tested on a PC). One
+// The update manifest of a release (update.ini), no hardware code (tested on a PC). One
 // block per board, so every kind of device finds its own file in the same release:
 //   [m5stack-core]
 //   file=scraper-control-m5stack-core-1.7.0.bin
 //   version=1.7.0  build=412  size=2145195  sha256=<64 hex>  sig=<DER hex>   (one per line)
 // sig is ECDSA P-256 over SHA-256 of signedMessage(): made by firmware/sign_release.py with
 // the release key, checked on the M5 with the public key in ReleaseKey.h. The M5 installs
-// only a signed build that is newer than its own, for its own board. Only update.txt has a
+// only a signed build that is newer than its own, for its own board. Only update.ini has a
 // fixed name: the firmware files can be renamed from release to release.
 #pragma once
 #include <cstdint>
@@ -20,7 +20,7 @@ struct Manifest {
   bool complete() const {
     return !board.empty() && safeFile() && !version.empty() && build > 0 && size > 0 && sha256.size() == 64 && !sig.empty();
   }
-  // a plain file name next to update.txt: no folders, no other host
+  // a plain file name next to update.ini: no folders, no other host
   bool safeFile() const {
     if (file.empty() || file[0] == '.') return false;
     for (char c : file)
@@ -29,7 +29,7 @@ struct Manifest {
   }
 };
 
-// The block of `board` in update.txt (empty Manifest when the release has none for it).
+// The block of `board` in update.ini (empty Manifest when the release has none for it).
 inline Manifest parseManifest(const std::string& text, const std::string& board) {
   Manifest m;
   bool mine = false;

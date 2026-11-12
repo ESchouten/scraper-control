@@ -862,12 +862,12 @@ static void wpsSetup() {
 }
 
 // ---- the M5's own updates: signed releases on GitHub ----------------------------------
-// Settings > Wifi > Update: reads update.txt of the latest release (Manifest.h), takes the
+// Settings > Wifi > Update: reads update.ini of the latest release (Manifest.h), takes the
 // block for this board, checks its signature with ReleaseKey.h, and only then downloads the
 // file it names into the other app slot, checking its SHA-256 on the way. Anything wrong: the current version stays.
 // Holding Update 1.5 s instead waits for an update from a Mac (pio, m5stack-core-ota).
 static const char kReleaseUrl[] = "https://github.com/" FW_REPO "/releases/latest/download/";
-static const char kManifest[] = "update.txt";   // fixed name; the firmware files can change names
+static const char kManifest[] = "update.ini";   // fixed name; the firmware files can change names
 
 // One line of the response, without "\r\n" ("" at the end of the headers or on a timeout).
 static String readLine(WiFiClientSecure& c, uint32_t ms = 15000) {

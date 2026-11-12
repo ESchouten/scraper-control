@@ -1,10 +1,10 @@
-"""Signs a firmware build for the devices' own updates: prints its block for update.txt.
+"""Signs a firmware build for the devices' own updates: prints its block for update.ini.
 
-    python3 firmware/sign_release.py out/scraper-control-m5stack-core-1.7.0.bin --key key.pem \\
-        --version 1.7.0 --build 412 >> out/update.txt
-    python3 firmware/sign_release.py --message out/update.txt     # prints what the signatures cover
+    python3 firmware/sign_release.py out/scraper-control-m5stack-core-1.6.412.bin --key key.pem \\
+        --version 1.6.412 --build 412 >> out/update.ini
+    python3 firmware/sign_release.py --message out/update.ini     # prints what the signatures cover
 
-update.txt holds one block per board ([m5stack-core], ...) and is the only file with a fixed
+update.ini holds one block per board ([m5stack-core], ...) and is the only file with a fixed
 name; each block names its firmware file. --legacy prints the old single-board firmware.txt
 instead, for M5s that still look for firmware.txt + firmware.bin (1.6.0 and older).
 
@@ -27,7 +27,7 @@ def message(m):
 
 
 def parse(text):
-    """{board: fields} of update.txt; a legacy firmware.txt (no blocks) gives one entry."""
+    """{board: fields} of update.ini; a legacy firmware.txt (no blocks) gives one entry."""
     blocks, cur = {}, None
     for line in text.splitlines():
         line = line.strip()

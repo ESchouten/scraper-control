@@ -26,11 +26,11 @@ def editors_and_manifest():
     subprocess.check_call(["g++", "-std=c++17", "-Wall",
                            os.path.join(ROOT, "firmware", "test_host", "manifest_test.cpp"), "-o", exe])
     subprocess.check_call([exe])
-    # the M5 and the release signer agree on what is signed, for every board in update.txt
+    # the M5 and the release signer agree on what is signed, for every board in update.ini
     fw = os.path.join(ROOT, "firmware")
     sign = os.path.join(fw, "sign_release.py")
     with tempfile.TemporaryDirectory() as tmp:
-        key, man = os.path.join(tmp, "k.pem"), os.path.join(tmp, "update.txt")
+        key, man = os.path.join(tmp, "k.pem"), os.path.join(tmp, "update.ini")
         subprocess.check_call(["openssl", "ecparam", "-name", "prime256v1", "-genkey", "-noout", "-out", key])
         text = "# test\n"
         for board in ("m5stack-core", "other-board"):

@@ -1,4 +1,4 @@
-// Host test for the update manifest (update.txt): one block per board, what is signed, newer-only.
+// Host test for the update manifest (update.ini): one block per board, what is signed, newer-only.
 // The same text as firmware/sign_release.py writes; test_cpp.py checks both agree.
 #include <cassert>
 #include <cstdio>
@@ -35,7 +35,7 @@ int main(int argc, char** argv) {
   for (const char* bad : {"../x.bin", "a/b.bin", ".hidden", "x.bin?y=1", "https:", ""}) {
     Manifest f = m;
     f.file = bad;
-    assert(!f.complete());   // only a plain file name next to update.txt
+    assert(!f.complete());   // only a plain file name next to update.ini
   }
   std::vector<uint8_t> b;
   assert(fromHex("30450a", b) && b.size() == 3 && b[0] == 0x30 && b[2] == 0x0a);

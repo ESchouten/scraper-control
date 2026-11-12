@@ -1,11 +1,12 @@
 name: release
 # One release per version, with everything in it:
-#   update.txt                    the devices' update manifest: one signed block per board, naming
+#   update.ini                    the devices' update manifest: one signed block per board, naming
 #                                 that board's file. The only fixed name: devices look for it in
 #                                 releases/latest (settings > Wifi > Update, or automatically)
 #   scraper-control-<board>-<v>.bin  the firmware per board (now: m5stack-core = the M5 buttons)
 #   firmware.bin + firmware.txt   TRANSITION ONLY: the same M5 build under the old names, for M5s on
-#                                 1.6.0 or older. Remove once those have updated.
+#   + update.txt                  1.6.0 or older (firmware.txt) and build 113 (update.txt, the first
+#                                 name of update.ini). Remove once those have updated.
 #   scraper-control-<v>.apk       Android app (install by hand, or keep it updated with Obtainium)
 #   Scraper Control desktop       macOS .dmg, Linux .deb (Windows: later, the core's CMake
 #                                 build is not set up for MSVC yet)
@@ -56,12 +57,13 @@ jobs:
           mkdir out
           BIN="out/scraper-control-m5stack-core-$VERSION.bin"
           cp firmware/.pio/build/m5stack-core/firmware.bin "$BIN"
-          echo "# Scraper Control $VERSION: one block per board" > out/update.txt
-          python3 firmware/sign_release.py "$BIN" --board m5stack-core --key "$FIRMWARE_SIGNING_KEY" --version "$VERSION" --build "$BUILD" >> out/update.txt
-          # TRANSITION ONLY (M5s on 1.6.0 or older look for these names); remove later
+          echo "# Scraper Control $VERSION: one block per board" > out/update.ini
+          python3 firmware/sign_release.py "$BIN" --board m5stack-core --key "$FIRMWARE_SIGNING_KEY" --version "$VERSION" --build "$BUILD" >> out/update.ini
+          # TRANSITION ONLY (M5s on 1.6.0 or older look for firmware.txt, build 113 for update.txt); remove later
+          cp out/update.ini out/update.txt
           cp "$BIN" out/firmware.bin
           python3 firmware/sign_release.py out/firmware.bin --legacy --key "$FIRMWARE_SIGNING_KEY" --version "$VERSION" --build "$BUILD" > out/firmware.txt
-          cat out/update.txt out/firmware.txt
+          cat out/update.ini out/firmware.txt
       - uses: actions/upload-artifact@v4
         with:
           name: firmware
