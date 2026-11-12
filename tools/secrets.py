@@ -14,7 +14,6 @@ Drivers include drivers/secrets.h when it is there. Without it everything builds
 tests pass.
 """
 import glob
-import json
 import os
 import re
 import sys
@@ -29,8 +28,6 @@ def read():
         p = os.path.expanduser("~/.scraper-control/secrets")
         if os.path.exists(p):
             text = open(p).read()
-    if text.strip().startswith("{"):
-        return {k: str(v) for k, v in json.loads(text).items()}
     values = {}
     for line in text.splitlines():
         if "=" in line and not line.lstrip().startswith("#"):
