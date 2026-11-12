@@ -6,7 +6,6 @@ purpose: it is an independent check of the core, not a copy of it.
 """
 import os
 import struct
-import sys
 import threading
 import time
 from dataclasses import dataclass

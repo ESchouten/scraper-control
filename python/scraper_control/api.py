@@ -49,7 +49,7 @@ class Status:
     battery_mv: int | None
     busy: bool                  # not on home screen / route menu
     screen: str
-    stop_question: bool = False  # after a stop: robot asks "route afmaken? Ja / Pauze / Nee"
+    stop_question: bool = False  # after a stop the robot asks "finish the route?"
 
     @classmethod
     def from_core(cls, d: dict) -> "Status":
@@ -114,10 +114,6 @@ class Robot:
     def status(self) -> Status:
         return Status.from_core(self._core.status())
 
-    @property
-    def screen_text(self) -> str:
-        return self._core.status().get("screen", "")
-
     # -- commands -------------------------------------------------------------
     async def start_route(self, letter: str, *, dry_run: bool = False) -> None:
         await self._run(self._core.start_route, letter, dry_run)
@@ -127,7 +123,7 @@ class Robot:
         await self._run(self._core.stop_route)
 
     async def answer_stop(self, finish: bool) -> None:
-        """The user's answer to "route afmaken?" after a stop: True = Ja (drives on), False = Nee."""
+        """The user's answer to "finish the route?" after a stop: True = yes (drives on), False = no."""
         await self._run(self._core.answer_stop, finish)
 
     async def set_planning(self, on: bool) -> None:

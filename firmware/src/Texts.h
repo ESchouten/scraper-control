@@ -29,7 +29,7 @@ struct Texts {
   // choose robot
   const char *searching, *noneFound, *nextWord, *choose, *back, *strongest, *robotSaved;
   // update over wifi
-  const char *updateTitle, *noWifi, *wifiConnecting, *wifiFailed, *readyForUpdate, *updating, *pressToStop;
+  const char *updateTitle, *noWifi, *wifiConnecting, *wifiFailed, *pressToStop;
   // wifi on the M5 itself: choose a network and type the password, or WPS
   const char *networkWord, *wpsWord, *versionRow, *scanningWifi, *noNetworks, *passwordFor, *spaceWord,
       *wifiSaved, *wpsPress, *wpsFailed;
@@ -62,8 +62,7 @@ static const Texts kNl = {
     "Robots zoeken...", "Geen robot gevonden. Is een andere app nog verbonden?", "Volgende", "Kiezen", "Terug",
     "Automatisch: de sterkste", "Robot opgeslagen",
     "Update", "Nog geen wifi. Kies eerst Netwerk of WPS.",
-    "Verbinden met wifi...", "Wifi lukt niet. Klopt het wachtwoord?", "Klaar voor een update vanaf de Mac", "Bijwerken...",
-    "Druk op een knop om te stoppen",
+    "Verbinden met wifi...", "Wifi lukt niet. Klopt het wachtwoord?", "Druk op een knop om te stoppen",
     "Netwerk", "WPS", "Versie", "Wifi-netwerken zoeken...", "Geen wifi-netwerk gevonden.", "Wachtwoord voor", "spatie",
     "Verbonden en opgeslagen:", "Druk binnen 2 minuten op de WPS-knop van je router.",
     "WPS lukte niet. Kies anders Netwerk en typ het wachtwoord.",
@@ -96,8 +95,7 @@ static const Texts kEn = {
     "Searching for robots...", "No robot found. Is another app still connected?", "Next", "Choose", "Back",
     "Automatic: the strongest", "Robot saved",
     "Update", "No Wi-Fi yet. Choose Network or WPS first.",
-    "Connecting to Wi-Fi...", "Wi-Fi failed. Is the password right?", "Ready for an update from the Mac", "Updating...",
-    "Press a button to stop",
+    "Connecting to Wi-Fi...", "Wi-Fi failed. Is the password right?", "Press a button to stop",
     "Network", "WPS", "Version", "Searching for Wi-Fi networks...", "No Wi-Fi network found.", "Password for", "space",
     "Connected and saved:", "Press the WPS button on your router within 2 minutes.",
     "WPS did not work. Choose Network instead and type the password.",

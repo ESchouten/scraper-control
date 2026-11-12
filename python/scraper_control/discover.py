@@ -3,7 +3,7 @@
 How a robot is recognised while scanning (no connection needed), from the driver:
   * the address starts with the driver's prefix, or
   * it advertises the driver's BLE service, or
-  * its advertised name contains the name you pass (e.g. "stal").
+  * its advertised name contains the name you pass (e.g. "barn").
 On Linux/Windows bleak reports real MACs; on macOS it reports a per-Mac UUID,
 so there only the service/name checks work.
 
@@ -47,20 +47,20 @@ async def discover(timeout: float = 8.0, name: str | None = None,
         uuids = [u.lower() for u in (adv.service_uuids or [])]
         reasons = []
         if _has_prefix(addr):
-            reasons.append("adres")
+            reasons.append("address")
         if SERVICE in uuids:
-            reasons.append("UART-service")
+            reasons.append("service")
         if name and adv_name and name.lower() in adv_name.lower():
-            reasons.append("naam")
+            reasons.append("name")
         if not reasons:
             if include_all:
                 out.append(Found(addr, adv_name, adv.rssi, "-"))
             continue
-        if name and "naam" not in reasons and adv_name:
+        if name and "name" not in reasons and adv_name:
             continue  # a name was asked for and this device has a different one
         out.append(Found(addr, adv_name, adv.rssi, "+".join(reasons)))
     # the driver's address prefix beats only the service; then strongest signal.
-    out.sort(key=lambda f: ("adres" not in f.why, -(f.rssi or -999)))
+    out.sort(key=lambda f: ("address" not in f.why, -(f.rssi or -999)))
     return out
 
 
@@ -88,7 +88,7 @@ def save_cached(address: str) -> None:
 
 
 def load_image_version(address: str) -> bytes:
-    """Image-set version the robot gave us last time (like the app's version.dat).
+    """Image-set version the robot gave us last time.
     Sending it back on the robot's [5,0] request skips the ~75 s image download."""
     v = _load().get("image_versions", {}).get(address)
     return bytes.fromhex(v) if v else bytes(9)
@@ -96,13 +96,6 @@ def load_image_version(address: str) -> bytes:
 
 def save_image_version(address: str, version: bytes) -> None:
     d = _load(); d.setdefault("image_versions", {})[address] = bytes(version).hex(); _save(d)
-
-
-def forget_cached() -> None:
-    try:
-        CACHE.unlink()
-    except OSError:
-        pass
 
 
 async def _probe_for_nus(candidates: list[Found], limit: int = 5) -> list[Found]:
@@ -116,7 +109,7 @@ async def _probe_for_nus(candidates: list[Found], limit: int = 5) -> list[Found]
             async with BleakClient(f.address, timeout=10) as c:
                 uuids = [s.uuid.lower() for s in c.services]
             if SERVICE in uuids:
-                ok.append(Found(f.address, f.name, f.rssi, "UART-service (na verbinden)"))
+                ok.append(Found(f.address, f.name, f.rssi, "service (after connecting)"))
         except Exception:
             continue
     return ok
@@ -130,11 +123,11 @@ async def resolve(name: str | None = None, timeout: float = 8.0) -> str:
         named.sort(key=lambda f: -(f.rssi or -999))
         found = await _probe_for_nus(named)
     if not found:
-        raise LookupError("Geen robot gevonden. Staat Bluetooth aan, ben je dichtbij, "
-                          "en is geen andere app met de robot verbonden?")
-    sure = [f for f in found if "adres" in f.why or "naam" in f.why]
+        raise LookupError("No robot found. Is Bluetooth on, are you close by, "
+                          "and is no other app connected to the robot?")
+    sure = [f for f in found if "address" in f.why or "name" in f.why]
     pick = sure or found
     if len(pick) > 1 and not name:
         lst = ", ".join(f"{f.address} ({f.name or '?'}, {f.rssi} dBm)" for f in pick)
-        raise LookupError(f"Meerdere robots gevonden: {lst}. Kies er een met --name of --address.")
+        raise LookupError(f"Several robots found: {lst}. Pick one with --name or --address.")
     return pick[0].address

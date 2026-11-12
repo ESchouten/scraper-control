@@ -11,7 +11,7 @@ try:
 except ImportError:
     m = types.ModuleType("bleak"); m.BleakClient = m.BleakScanner = object; sys.modules["bleak"] = m
 
-from scraper_control import Robot, RobotBusy, RobotError, api, core
+from scraper_control import Robot, RobotBusy, api
 from fake_robot import FakeRobot
 
 from scraper_control.build_core import LIBNAME, build

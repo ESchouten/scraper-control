@@ -217,7 +217,7 @@ struct Screen {
 };
 
 // ---- the labels above the buttons ----------------------------------------------------------
-enum class Pill { None, Primary, Neutral };
+enum class Pill { Primary, Neutral };
 
 // Labels above the three buttons. Default: small keys at the bottom; the home screen uses
 // taller route keys (y, h, font). A label may start with an icon (Icons.h).
@@ -232,7 +232,7 @@ static void pills(const String (&label)[3], const Pill (&style)[3], int y = kFoo
     init = true;
   }
   for (int i = 0; i < 3; i++) {
-    if (style[i] == Pill::None || label[i].isEmpty()) continue;
+    if (label[i].isEmpty()) continue;
     bool primary = style[i] == Pill::Primary;
     lv_obj_t* o = box(kBtnX[i] - 47, y, 94, h, h >= 40 ? 14 : h / 2, primary ? kRed : kCard, primary ? kNone : kLine);
     if (primary) {   // a little depth, like the app's buttons

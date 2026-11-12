@@ -56,13 +56,9 @@ def main():
     out_dir = os.path.abspath(args[0] if args else os.path.join(ROOT, "build", "m5-preview"))
     os.makedirs(out_dir, exist_ok=True)
     tmp = tempfile.mkdtemp()
-    real = os.path.join(FW, "include", "config.h")
-    src = real if os.path.exists(real) else os.path.join(FW, "include", "config.example.h")
-    with open(src) as a, open(os.path.join(tmp, "config.h"), "w") as b:
-        b.write(a.read())
     objs = lvgl_host.objects()
     exe = os.path.join(tmp, "preview")
-    subprocess.check_call(["c++", "-std=c++17", "-w", "-I", tmp, "-I", os.path.join(FW, "test_host", "stubs"),
+    subprocess.check_call(["c++", "-std=c++17", "-w", "-I", os.path.join(FW, "test_host", "stubs"),
                            *lvgl_host.flags(), *host_flags(), os.path.join(HERE, "preview.cpp"), *core_sources(),
                            *objs, *lvgl_host.link_flags(), "-o", exe])
     for raw in subprocess.check_output([exe, tmp], text=True).split():

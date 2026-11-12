@@ -12,8 +12,7 @@
 
 #include "ScraperDriver.h"
 
-
-// A robot seen in a scan (the driver's address prefix, its BLE service, or the name).
+// A robot seen in a scan (the driver's address prefix or its BLE service).
 struct FoundRobot {
   std::string address, name;
   int rssi;
@@ -25,7 +24,7 @@ class BleSerialLink : public driver::Transport {
   static std::vector<FoundRobot> scanAll(uint32_t ms = 5000);
 
   // address: the robot's address, or "" to scan for one.
-  explicit BleSerialLink(std::string address = "", std::string name = "");
+  explicit BleSerialLink(std::string address = "");
   bool connect() override;
   bool write(const driver::Bytes& frame) override;
   void disconnect() override;
@@ -39,7 +38,7 @@ class BleSerialLink : public driver::Transport {
   bool scan();
   void onNotify(const uint8_t* d, size_t n);
 
-  std::string address_, name_;
+  std::string address_;
   NimBLEClient* client_ = nullptr;
   NimBLERemoteCharacteristic* rx_ = nullptr;
   std::mutex mu_;

@@ -16,33 +16,25 @@ std::string lower(std::string s) {
   for (auto& c : s) c = (char)tolower((unsigned char)c);
   return s;
 }
+
+void startBle() {
+  if (NimBLEDevice::isInitialized()) return;
+  NimBLEDevice::init("scraper-control");
+  NimBLEDevice::setMTU(247);
+}
 }  // namespace
 
-BleSerialLink::BleSerialLink(std::string address, std::string name)
-    : address_(lower(address)), name_(lower(name)) {}
+BleSerialLink::BleSerialLink(std::string address) : address_(lower(address)) {}
 
-bool BleSerialLink::scan() {
-  NimBLEScan* s = NimBLEDevice::getScan();
-  s->setActiveScan(true);
-  NimBLEScanResults res = s->getResults(5000, false);
-  int best = -1000;
-  for (int i = 0; i < res.getCount(); i++) {
-    const NimBLEAdvertisedDevice* d = res.getDevice(i);
-    std::string a = lower(d->getAddress().toString());
-    bool ours = prefixed(a);
-    bool named = !name_.empty() && lower(d->getName()).find(name_) != std::string::npos;
-    bool service = d->isAdvertisingService(NimBLEUUID(kService));
-    if ((ours || named || service) && d->getRSSI() > best) { best = d->getRSSI(); address_ = a; }
-  }
-  s->clearResults();
-  return !address_.empty();
+bool BleSerialLink::scan() {   // the strongest robot nearby
+  std::vector<FoundRobot> found = scanAll();
+  if (found.empty()) return false;
+  address_ = found.front().address;
+  return true;
 }
 
 std::vector<FoundRobot> BleSerialLink::scanAll(uint32_t ms) {
-  if (!NimBLEDevice::isInitialized()) {
-    NimBLEDevice::init("scraper-knop");
-    NimBLEDevice::setMTU(247);
-  }
+  startBle();
   NimBLEScan* s = NimBLEDevice::getScan();
   s->setActiveScan(true);
   NimBLEScanResults res = s->getResults(ms, false);
@@ -59,10 +51,7 @@ std::vector<FoundRobot> BleSerialLink::scanAll(uint32_t ms) {
 }
 
 bool BleSerialLink::connect() {
-  if (!NimBLEDevice::isInitialized()) {
-    NimBLEDevice::init("scraper-knop");
-    NimBLEDevice::setMTU(247);
-  }
+  startBle();
   if (address_.empty() && !scan()) return false;
   if (!client_) client_ = NimBLEDevice::createClient();
   client_->setConnectTimeout(5000);

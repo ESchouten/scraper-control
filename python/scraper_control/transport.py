@@ -2,7 +2,6 @@
 implemented here once. So far: "ble-serial" with bleak (write to RX, notifications from TX)."""
 from __future__ import annotations
 
-import asyncio
 from collections.abc import Callable
 
 from bleak import BleakClient
@@ -22,13 +21,7 @@ class BleTransport:
 
     async def connect(self) -> None:
         await self._client.connect()
-        try:
-            await self._client.get_services()  # type: ignore[attr-defined]
-        except Exception:
-            pass
-        await self._client.start_notify(
-            TX, lambda _sender, data: self._on_data(bytes(data))
-        )
+        await self._client.start_notify(TX, lambda _sender, data: self._on_data(bytes(data)))
 
     async def write(self, frame: bytes) -> None:
         # write without response, as the robot expects
@@ -40,7 +33,3 @@ class BleTransport:
         except Exception:
             pass
         await self._client.disconnect()
-
-    @property
-    def is_connected(self) -> bool:
-        return self._client.is_connected

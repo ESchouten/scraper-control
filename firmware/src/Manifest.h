@@ -58,6 +58,7 @@ inline Manifest parseManifest(const std::string& text, const std::string& board)
 }
 
 // What the signature covers. Not the file name: whatever the file is called, its SHA-256 must match.
+// The prefix is part of every signature the devices in the field check: it stays as it is.
 inline std::string signedMessage(const Manifest& m) {
   return "scraper-knop|" + m.board + "|" + m.version + "|" + std::to_string(m.build) + "|" + std::to_string(m.size) + "|" + m.sha256;
 }

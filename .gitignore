@@ -8,29 +8,14 @@ venv/
 build/
 dist/
 
-# Per-robot cache written at runtime (image version the robot reported)
-beeldversie.txt
-
-# Firmware: local config holds the PIN; PlatformIO build output
-firmware/include/config.h
+# PlatformIO build output
 firmware/.pio/
-firmware/.vscode/
-
-# Never commit other apps or code decompiled from them
-decompiled-reference/
-*.apk
-*.apks
-*.xapk
-
-# Logs, scratch, archives
-*.log
-*.diff
-*.zip
 
 # Editors / OS
 .DS_Store
 .idea/
 .vscode/
+*.log
 
 # Build secrets (tools/secrets.py) and core libraries built on first use
 drivers/secrets.h

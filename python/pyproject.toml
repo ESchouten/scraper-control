@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "scraper-control"
-version = "1.6.0"
+version = "1.6"
 description = "Control a manure scraper robot over Bluetooth LE"
 requires-python = ">=3.9"
 dependencies = ["bleak>=0.22"]

@@ -12,14 +12,10 @@ from __future__ import annotations
 import ctypes
 import json
 import os
-import sys
-import threading
 from pathlib import Path
 
 OK, CONNECT_FAILED, PIN_REJECTED, NO_SCREEN, BUSY, UNEXPECTED, STARTED_NO_ANSWER = range(7)
 IN_PROGRESS = 100
-RESULT_NAMES = {0: "ok", 1: "connect_failed", 2: "pin_rejected", 3: "no_screen", 4: "busy",
-                5: "unexpected", 6: "started_no_answer", 100: "in_progress"}
 
 WRITE_FN = ctypes.CFUNCTYPE(None, ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint8), ctypes.c_int32)
 DONE_FN = ctypes.CFUNCTYPE(None, ctypes.c_void_p, ctypes.c_int32, ctypes.c_int32)
@@ -39,8 +35,8 @@ def library_path() -> Path:
     try:   # first use: build it next to this package (needs g++ or clang++)
         return build()
     except Exception as e:
-        raise FileNotFoundError(f"{LIBNAME} niet gevonden en bouwen lukte niet ({e}); "
-                                "bouw hem met: python -m scraper_control.build_core") from e
+        raise FileNotFoundError(f"{LIBNAME} not found and building it failed ({e}); "
+                                "build it with: python -m scraper_control.build_core") from e
 
 
 _lib = None
@@ -68,8 +64,6 @@ def lib():
             getattr(L, name).restype = ctypes.c_int32
         L.scraper_image_version.argtypes = [S, ctypes.c_char_p]
         L.scraper_image_version.restype = ctypes.c_int32
-        L.scraper_result_text.argtypes = [ctypes.c_int32]
-        L.scraper_result_text.restype = ctypes.c_char_p
         L.scraper_result_text_lang.argtypes = [ctypes.c_int32, ctypes.c_char_p]
         L.scraper_result_text_lang.restype = ctypes.c_char_p
         L.scraper_set_language.argtypes = [S, ctypes.c_char_p]
@@ -86,7 +80,7 @@ def link_info() -> dict:
     return json.loads(buf.value.decode())
 
 
-def result_text(r: int, language: str = "nl") -> str:
+def result_text(r: int, language: str = "en") -> str:
     return lib().scraper_result_text_lang(r, language.encode()).decode()
 
 
@@ -97,9 +91,8 @@ class CoreSession:
     Commands are blocking here (`connect()`, `start_route()`, ...) and return a result
     code; run them in a thread (e.g. asyncio.to_thread) when on an event loop."""
 
-    def __init__(self, write, pin: str | None = None, image_version: bytes | None = None, language: str = "nl"):
+    def __init__(self, write, pin: str | None = None, image_version: bytes | None = None, language: str = "en"):
         self._write = write
-        self._done = threading.Event()
         self._wcb = WRITE_FN(self._on_write)
         self._dcb = DONE_FN(lambda _u, _cmd, _res: None)
         ver = image_version if image_version and len(image_version) == 9 else None

@@ -157,8 +157,8 @@ Recognition by shape (`Screen::isHome()` etc., works in every language):
 The **robot's language** (`Screen::language()`, `"language"` in the status JSON: `nl`, `en` or
 empty) does come from words. It is only used for the language of a user interface (the M5 follows
 it); the recognition above does not depend on it. The texts the core makes itself (result, error
-detail, log) are Dutch or English: `Robot::lang`, `lely_set_language(s, "en")`,
-`lely_result_text_lang(r, "en")`.
+detail, log) are Dutch or English: `Robot::lang`, `scraper_set_language(s, "en")`,
+`scraper_result_text_lang(r, "en")`.
 
 Screens we know (Dutch robot):
 ```

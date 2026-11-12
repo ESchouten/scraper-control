@@ -7,7 +7,6 @@
 // itself, or WPS) and updates (signed releases from GitHub).
 // A rejected PIN opens the PIN screen by itself.
 // The screen dims after a minute and never goes off, so a press always acts at once.
-#include <ArduinoOTA.h>
 #include <M5Unified.h>
 #include <Preferences.h>
 #include <Update.h>
@@ -32,41 +31,21 @@
 #include "TextEditor.h"
 #include "Texts.h"
 #include "Ui.h"
-#include "config.h"
 
-#ifndef ROBOT_PIN
-#define ROBOT_PIN ""
-#endif
-#ifndef ROBOT_ADDRESS
-#define ROBOT_ADDRESS ""
-#endif
-#ifndef ROBOT_NAME
-#define ROBOT_NAME ""
-#endif
 #ifndef FW_VERSION  // set by version.py (PlatformIO): the apps' version (1.6.120) and its build (120)
 #define FW_VERSION "dev"
 #define FW_BUILD 0
 #endif
 #define FW_BOARD "m5stack-core"
-#ifndef FW_REPO     // where the signed releases are (public GitHub repo)
-#define FW_REPO "ESchouten/scraper-control"
-#endif
-#ifndef WIFI_SSID   // optional first default; normally set on the M5 (settings > Wifi)
-#define WIFI_SSID ""
-#endif
-#ifndef WIFI_PASS
-#define WIFI_PASS ""
-#endif
-#ifndef OTA_PASS    // the password pio asks for an update over wifi (upload_flags --auth)
-#define OTA_PASS ""
-#endif
+#define FW_REPO "ESchouten/scraper-control"   // where the signed releases are
+static const char kRoutes[3] = {'A', 'B', 'C'};   // the route of the left, middle and right button
 
 using namespace driver;
 
 static Preferences prefs;
 static uint8_t storedVersion[9] = {'D', 'I', 'S', '0', '0', '1', '8', 'T', '4'};   // learned 2026-11-03
 static std::string savedAddress;
-static String pin;                 // from flash; ROBOT_PIN in config.h is only the first default
+static String pin;                 // from flash; set on the PIN screen
 // What the last route button did besides starting: stopped a running route, and then the
 // user's answer to the robot's "route afmaken?" (Erik 2026-11-11).
 enum class Stopped { No, Yes, LeftOpen, Continues, Cancelled };
@@ -180,13 +159,9 @@ static void idle() {
   const char* hold[3] = {tx->holdPlanning, tx->holdManual, tx->holdPin};
   const char* icon[3] = {ICON_CALENDAR, ICON_HAND, ICON_GEAR};
   for (int i = 0; i < 3; i++) holdKey(i, 116, 64, tx->holdWord, icon[i], hold[i]);
-  const char r[3] = {ROUTE_BTN_A, ROUTE_BTN_B, ROUTE_BTN_C};
   String label[3];
-  Pill style[3];
-  for (int i = 0; i < 3; i++) {
-    label[i] = r[i] == '-' ? String() : String(ICON_PLAY) + "  " + r[i];
-    style[i] = r[i] == '-' ? Pill::None : Pill::Primary;
-  }
+  Pill style[3] = {Pill::Primary, Pill::Primary, Pill::Primary};
+  for (int i = 0; i < 3; i++) label[i] = String(ICON_PLAY) + "  " + kRoutes[i];
   pills(label, style, 192, 42, kTitle);
 }
 
@@ -361,7 +336,7 @@ static Result runOnce(const String& title, Kind kind, const Job& job, Status& st
   int done = 0, last = 0;
   bool planningOn = true;   // until the robot's screen tells
   drawProgress(title, nextStep(kind, 0, planningOn), 0, expectedSteps(kind, planningOn));
-  BleSerialLink link(savedAddress.empty() ? ROBOT_ADDRESS : savedAddress, ROBOT_NAME);
+  BleSerialLink link(savedAddress);
   Robot robot(link, encryptPin(pin.c_str()), storedVersion);
   if (owedPlanning >= 0 && millis() - owedAt < kOwedForMs) robot.setOwedPlanning(owedPlanning);
   robot.onOwed = [](int v) {
@@ -671,8 +646,7 @@ static void chooseRobot() {
 
 // ---- wifi, set up on the M5 itself (Erik: no phone, no app) ---------------------------
 // Settings > Wifi: Network = choose from a scan and type the password with the three
-// buttons (TextEditor), WPS = press the router's WPS button. Kept in flash like the PIN;
-// WIFI_SSID / WIFI_PASS in config.h are only the first default.
+// buttons (TextEditor), WPS = press the router's WPS button. Kept in flash like the PIN.
 static String wifiSsid, wifiPass;
 
 static bool wifiUp(uint32_t ms = 20000) {
@@ -829,7 +803,7 @@ static void wpsSetup() {
   std::strncpy(cfg.factory_info.manufacturer, "Scraper Control", sizeof cfg.factory_info.manufacturer - 1);
   std::strncpy(cfg.factory_info.model_number, "1", sizeof cfg.factory_info.model_number - 1);
   std::strncpy(cfg.factory_info.model_name, "Scraper-knop", sizeof cfg.factory_info.model_name - 1);
-  std::strncpy(cfg.factory_info.device_name, "scraper-knop", sizeof cfg.factory_info.device_name - 1);
+  std::strncpy(cfg.factory_info.device_name, "scraper-control", sizeof cfg.factory_info.device_name - 1);
   bool started = esp_wifi_wps_enable(&cfg) == ESP_OK && esp_wifi_wps_start(0) == ESP_OK;
   bool cancelled = false;
   uint32_t t0 = millis();
@@ -865,7 +839,6 @@ static void wpsSetup() {
 // Settings > Wifi > Update: reads update.ini of the latest release (Manifest.h), takes the
 // block for this board, checks its signature with ReleaseKey.h, and only then downloads the
 // file it names into the other app slot, checking its SHA-256 on the way. Anything wrong: the current version stays.
-// Holding Update 1.5 s instead waits for an update from a Mac (pio, m5stack-core-ota).
 static const char kReleaseUrl[] = "https://github.com/" FW_REPO "/releases/latest/download/";
 static const char kManifest[] = "update.ini";   // fixed name; the firmware files can change names
 
@@ -898,7 +871,7 @@ static bool httpsGet(WiFiClientSecure& client, std::string url, long& length) {
     client.setInsecure();   // trust comes from the signature, not from the connection
     if (!client.connect(host.c_str(), 443)) return false;
     client.print(String("GET ") + path.c_str() + " HTTP/1.0\r\nHost: " + host.c_str() +
-                 "\r\nUser-Agent: scraper-knop\r\nConnection: close\r\n\r\n");
+                 "\r\nUser-Agent: scraper-control\r\nConnection: close\r\n\r\n");
     int code = statusCode(readLine(client).c_str());
     length = -1;
     for (;;) {
@@ -1165,7 +1138,7 @@ static const uint32_t kSyncEveryMs = 15UL * 60 * 1000;
 static uint32_t nextSync = 15000;   // the first read soon after starting
 
 static bool readRobotQuietly() {
-  BleSerialLink link(savedAddress.empty() ? ROBOT_ADDRESS : savedAddress, ROBOT_NAME);
+  BleSerialLink link(savedAddress);
   Robot robot(link, encryptPin(pin.c_str()), storedVersion);
   robot.lang = langFromCode(tx->code);
   robot.log = [](const std::string& s) { Serial.println(s.c_str()); };
@@ -1198,46 +1171,7 @@ static void syncTick() {
   idle();
 }
 
-// ---- update from a Mac (ArduinoOTA): pio run -e m5stack-core-ota -t upload --------------
-static void otaUpdate() {
-  using namespace ui;
-  if (wifiSsid.isEmpty()) {
-    notice(tx->updateTitle, tx->noWifi, 2);
-    return;
-  }
-  busy(tx->updateTitle, tx->wifiConnecting);
-  if (!wifiUp()) {
-    wifiDown();
-    notice(tx->updateTitle, tx->wifiFailed, 2);
-    return;
-  }
-  ArduinoOTA.setHostname("scraper-knop");
-  if (OTA_PASS[0]) ArduinoOTA.setPassword(OTA_PASS);
-  ArduinoOTA.onStart([] { busy(tx->updateTitle, tx->updating); });
-  ArduinoOTA.onProgress([](unsigned done, unsigned total) { progressBar(22, 162, 276, int(done / 1024), int(total / 1024)); });
-  ArduinoOTA.begin();
-  {
-    ui::Screen scr(tx->updateTitle);
-    card(10, 56, 300, 136, kCard);
-    disc(22, 66, 40, ICON_WIFI, kRedSoft, kRed);
-    int y = wrap(tx->readyForUpdate, 74, 70, 226, kBold, kInk, 130);
-    text(String("scraper-knop.local"), 74, y + 6, kBody, kMuted);
-    text(String(WiFi.localIP().toString().c_str()), 74, y + 28, kBold, kInk);
-    hint(tx->pressToStop);
-  }
-  uint32_t until = millis() + 600000;   // 10 minutes
-  while ((int32_t)(millis() - until) < 0) {
-    ArduinoOTA.handle();   // an update reboots the M5 when it is done
-    M5.update();
-    if (M5.BtnA.wasPressed() || M5.BtnB.wasPressed() || M5.BtnC.wasPressed()) break;
-    delay(5);
-  }
-  waitAllReleased();
-  ArduinoOTA.end();
-  wifiDown();
-}
-
-// ---- settings > wifi: left = network, middle = WPS, right = update (held = from a Mac) ---
+// ---- settings > wifi: left = network, middle = WPS, right = update ----------------------
 static void drawWifi() {
   using namespace ui;
   ui::Screen scr(tx->wifiRow);
@@ -1252,18 +1186,12 @@ static void drawWifi() {
 static void wifiMenu() {
   waitAllReleased();
   drawWifi();
-  uint32_t start = millis(), rightDown = 0;
+  uint32_t start = millis();
   while (millis() - start < 20000) {
     M5.update();
     if (M5.BtnA.wasReleased()) { chooseNetwork(); return; }
     if (M5.BtnB.wasReleased()) { wpsSetup(); return; }
-    if (M5.BtnC.wasPressed()) rightDown = millis();
-    if (holdFired(M5.BtnC, rightDown)) {
-      waitAllReleased();
-      otaUpdate();
-      return;
-    }
-    if (rightDown && M5.BtnC.wasReleased()) { selfUpdate(); return; }
+    if (M5.BtnC.wasReleased()) { selfUpdate(); return; }
     delay(10);
   }
 }
@@ -1331,9 +1259,9 @@ void setup() {
   prefs.begin(DRIVER_STORE, false);
   if (prefs.getBytesLength("imgver") == 9) prefs.getBytes("imgver", storedVersion, 9);
   savedAddress = prefs.getString("addr", "").c_str();
-  pin = prefs.getString("pin", ROBOT_PIN);
-  wifiSsid = prefs.getString("wssid", WIFI_SSID);
-  wifiPass = prefs.getString("wpass", WIFI_PASS);
+  pin = prefs.getString("pin", "");
+  wifiSsid = prefs.getString("wssid", "");
+  wifiPass = prefs.getString("wpass", "");
   tx = &textsFor(prefs.getString("lang", "nl").c_str());
   M5.Display.setBrightness(kBright);
   wake();
@@ -1372,14 +1300,13 @@ void loop() {
   if (haveSeen && millis() - homeDrawnAt > 60000 && !M5.BtnA.isPressed() && !M5.BtnB.isPressed() &&
       !M5.BtnC.isPressed())
     idle();
-  const char routes[3] = {ROUTE_BTN_A, ROUTE_BTN_B, ROUTE_BTN_C};
   for (int i = 0; i < 3; i++) {
     if (btn[i]->wasPressed()) pressedAt[i] = millis();
     if (!pressedAt[i]) continue;
     bool longPress = holdFired(*btn[i], pressedAt[i]);
     if (!longPress && !btn[i]->wasReleased()) continue;
     pressedAt[i] = 0;
-    if (!longPress) startRoute(routes[i]);
+    if (!longPress) startRoute(kRoutes[i]);
     else {
       if (i == 1) withRobot(tx->manual, Kind::Manual, manualSession);
       else if (i == 0) togglePlanning();

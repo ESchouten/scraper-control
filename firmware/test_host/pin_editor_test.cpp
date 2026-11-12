@@ -36,6 +36,6 @@ int main() {
     PinEditor e("");
     assert(e.digits() == "0000" && e.cursor() == 0);
   }
-  std::puts("ok   pincode-editor");
+  std::puts("ok   PIN editor");
   return 0;
 }

@@ -1,6 +1,6 @@
 // Lely Discovery protocol: frames, parser and screen decoding. Pure C++17,
 // no Bluetooth and no Arduino, so it also builds and runs on a PC for tests.
-// Wire format and screen model (see docs/PROTOCOL.md).
+// Wire format and screen model (see ../PROTOCOL.md).
 #pragma once
 #include <cstdint>
 #include <map>
@@ -18,7 +18,7 @@ constexpr BleInfo kBle = {"6e400001-b5a3-f393-e0a9-e50e24dcca9e", "6e400002-b5a3
 
 using Bytes = std::vector<uint8_t>;
 
-// Panel keys (keycodes from the Lely Control app).
+// Panel keys.
 enum class Key : uint16_t {
   Back = 1, Soft2 = 2, Soft1 = 4, Up = 8, Prog = 16, Down = 32,
   Soft3 = 64, Enter = 128, StartStop = 256,

@@ -55,16 +55,8 @@ def editors_and_manifest():
 def firmware_syntax():
     """main.cpp against stub M5/Arduino headers: catches C++ mistakes, not hardware ones."""
     fw = os.path.join(ROOT, "firmware")
-    inc = os.path.join(fw, "include")
-    if os.path.exists(os.path.join(inc, "config.h")):
-        cfg = ["-I", inc]
-    else:   # fresh checkout / CI: use the template as config.h
-        tmp = tempfile.mkdtemp()
-        with open(os.path.join(inc, "config.example.h")) as src, open(os.path.join(tmp, "config.h"), "w") as dst:
-            dst.write(src.read())
-        cfg = ["-I", tmp]
     subprocess.check_call(["g++", "-std=c++17", "-Wall", "-Werror=return-type", "-fsyntax-only", "-I", os.path.join(fw, "test_host", "stubs"),
-                           *cfg, *host_flags(), *lvgl_host.flags(), os.path.join(fw, "src", "main.cpp")])
+                           *host_flags(), *lvgl_host.flags(), os.path.join(fw, "src", "main.cpp")])
     print("ok   firmware main.cpp compiles (with stubs)")
 
 

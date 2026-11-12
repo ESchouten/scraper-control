@@ -324,8 +324,6 @@ int32_t scraper_image_version(scraper_session* s, uint8_t* out9) {
   return s->versionChanged ? 1 : 0;
 }
 
-const char* scraper_result_text(int32_t r) { return scraper_result_text_lang(r, "nl"); }
-
 int32_t scraper_encrypt_pin(const char* pin, uint8_t* out, int32_t size) {
   Bytes b = encryptPin(pin ? pin : "");
   if (out) memcpy(out, b.data(), b.size() < (size_t)size ? b.size() : (size_t)size);

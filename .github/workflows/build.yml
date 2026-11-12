@@ -1,14 +1,10 @@
 name: build
-# Builds the M5Stack firmware on every push to main (the apps: workflow native).
-# Download it under Actions -> this run -> Artifacts.
-on:
-  push:
-    branches: [main]
-  pull_request:
-  workflow_dispatch:
+# Tests the buttons' firmware and every robot driver, then builds the firmware (the apps: workflow
+# native). Download the build under Actions -> this run -> Artifacts.
+on: [push, pull_request, workflow_dispatch]
 
 concurrency:
-  group: build-${{ github.ref }}
+  group: build-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 
 jobs:
@@ -25,15 +21,17 @@ jobs:
         with:
           path: ~/.platformio
           key: pio-${{ hashFiles('firmware/platformio.ini') }}
-      - run: pip install platformio
-      - name: "Build M5Stack firmware (no PIN inside, the device asks for it)"
+      - run: pip install platformio cryptography
+      - name: Firmware on a computer (editors, update manifest, syntax check)
+        run: python tests/test_firmware.py
+      - name: Every robot driver's own tests (against its simulated robot)
+        run: for t in drivers/*/tests/test_*.py; do echo "== $t"; python "$t" || exit 1; done
+      - name: Build the M5Stack firmware
         working-directory: firmware
-        run: |
-          cp include/config.example.h include/config.h
-          pio run -e m5stack-core
+        run: pio run
       - uses: actions/upload-artifact@v4
         with:
-          name: scraper-knop-firmware
+          name: firmware
           path: |
             firmware/.pio/build/m5stack-core/firmware.bin
             firmware/.pio/build/m5stack-core/bootloader.bin

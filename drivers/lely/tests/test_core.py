@@ -1,7 +1,7 @@
 """The Lely core (C++) against the simulated robot, through host_main.cpp, and real screens
 from the robot through replay.cpp.
 Run: python3 drivers/lely/tests/test_core.py"""
-import os, struct, subprocess, sys, tempfile, types
+import os, struct, subprocess, sys, tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DRIVER = os.path.dirname(HERE)

@@ -49,6 +49,6 @@ int main() {
     for (int i = 0; i < 80; i++) e.press();
     assert(e.text().size() == TextEditor::kMax);
   }
-  std::puts("ok   tekst-editor (wifi-wachtwoord)");
+  std::puts("ok   text editor (wifi password)");
   return 0;
 }

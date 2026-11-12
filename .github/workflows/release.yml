@@ -25,8 +25,27 @@ permissions:
   contents: write
 
 jobs:
-  firmware:
+  version: # 1.6.120: scraper.version + the build number (commit count + scraper.buildBase)
     runs-on: ubuntu-latest
+    outputs:
+      build: ${{ steps.v.outputs.build }}
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: v
+        run: |
+          BUILD=$(( $(git rev-list --count HEAD) + $(sed -n 's/^scraper.buildBase=//p' native/gradle.properties) ))
+          echo "build=$BUILD" >> "$GITHUB_OUTPUT"
+          echo "version=$(sed -n 's/^scraper.version=//p' native/gradle.properties).$BUILD" >> "$GITHUB_OUTPUT"
+
+  firmware:
+    needs: version
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      BUILD: ${{ needs.version.outputs.build }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -34,23 +53,19 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install platformio cryptography
+      - run: pip install platformio
       - name: Build secrets
         env:
           BUILD_SECRETS: ${{ secrets.BUILD_SECRETS }}
         run: python3 tools/secrets.py --release
       - name: Build
         working-directory: firmware
-        run: |
-          cp include/config.example.h include/config.h
-          pio run -e m5stack-core
+        run: pio run
       - name: Sign
         env:
           FIRMWARE_SIGNING_KEY: ${{ secrets.FIRMWARE_SIGNING_KEY }}
         run: |
           test -n "$FIRMWARE_SIGNING_KEY" || { echo "secret FIRMWARE_SIGNING_KEY is missing"; exit 1; }
-          BUILD=$(( $(git rev-list --count HEAD) + $(sed -n 's/^scraper.buildBase=//p' native/gradle.properties || echo 0) ))
-          VERSION="$(sed -n 's/^scraper.version=//p' native/gradle.properties).$BUILD"   # 1.6.120
           mkdir out
           BIN="out/scraper-control-m5stack-core-$VERSION.bin"
           cp firmware/.pio/build/m5stack-core/firmware.bin "$BIN"
@@ -63,7 +78,10 @@ jobs:
           path: out/
 
   android:
+    needs: version
     runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -93,7 +111,6 @@ jobs:
           SCRAPER_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: |
           ./gradlew :androidApp:assembleRelease --console=plain
-          VERSION="$(sed -n 's/^scraper.version=//p' gradle.properties).$(( $(git rev-list --count HEAD) + $(sed -n 's/^scraper.buildBase=//p' gradle.properties || echo 0) ))"
           mkdir ../out
           cp androidApp/build/outputs/apk/release/*.apk "../out/scraper-control-$VERSION.apk"
       - uses: actions/upload-artifact@v4
@@ -138,12 +155,12 @@ jobs:
           if-no-files-found: error
 
   publish:
-    needs: [firmware, android, desktop]
+    needs: [version, firmware, android, desktop]
     runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - uses: actions/download-artifact@v4
         with:
           path: dist
@@ -152,8 +169,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          BUILD=$(( $(git rev-list --count HEAD) + $(sed -n 's/^scraper.buildBase=//p' native/gradle.properties || echo 0) ))
-          VERSION="$(sed -n 's/^scraper.version=//p' native/gradle.properties).$BUILD"   # 1.6.120
           ls -laR dist
           gh release create "v$VERSION" dist/* \
             --title "Scraper Control $VERSION" \

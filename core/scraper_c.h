@@ -122,11 +122,10 @@ SCRAPER_API int32_t scraper_status_json(scraper_session* s, char* buf, int32_t s
 SCRAPER_API int32_t scraper_last_error(scraper_session* s, char* buf, int32_t size);
 /* Copies the 9-byte image version; returns 1 if the robot sent a new one. */
 SCRAPER_API int32_t scraper_image_version(scraper_session* s, uint8_t* out9);
-SCRAPER_API const char* scraper_result_text(int32_t result); /* Dutch, for the UI */
 /* The PIN as the core sends it into out (for the fake robots in tests);
  * returns its length (16 or 32 bytes for up to 15 / 31 characters). For the apps' fake robot. */
 SCRAPER_API int32_t scraper_encrypt_pin(const char* pin, uint8_t* out, int32_t size);
-/* The same in a language: "nl" or "en" (anything else: Dutch). */
+/* The result as text for the UI, in a language: "nl" or "en" (anything else: Dutch). */
 SCRAPER_API const char* scraper_result_text_lang(int32_t result, const char* language);
 /* Language of scraper_last_error and the log: "nl" (default) or "en". The status JSON has
  * "language": the robot's own language ("nl", "en" or "" if not known). */

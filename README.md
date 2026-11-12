@@ -30,7 +30,7 @@ Python script.
 | `firmware/` | The M5Stack buttons (PlatformIO) |
 | `native/` | The apps: shared Kotlin, Compose for Android and desktop, SwiftUI for iOS ([README](native/README.md)) |
 | `python/` | The Python library `scraper_control` and the command line `scraper.py` |
-| `tools/` | Build secrets and publishing |
+| `tools/` | Build secrets |
 
 Every client only provides the link to the robot (bytes in, bytes out); the driver says which
 kind of link it needs. A new robot type is a new folder in `drivers/`.

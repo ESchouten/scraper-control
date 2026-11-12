@@ -1,7 +1,7 @@
 # Real robot, 2026-11-11, firmware screen after Start/Stop on the driving screen (route A).
 # Captured from the real robot (read-only after the one Start/Stop; the question was not answered).
 # Soft keys: Ja = soft1 (left), Pauze = soft2 (middle), Nee = soft3 (right); 'HAND' sits in a box above Pauze.
-# Also seen tonight (text only, via cli.py): 'HANDM. LADER / 13.5 V / 0.1 A / L R' (manual charger screen).
+# Also seen tonight (text only, via scraper.py): 'HANDM. LADER / 13.5 V / 0.1 A / L R' (manual charger screen).
 ===== question after stop =====
 text y=3 x=25 'ROUTE GESTOPT'
 text y=16 x=4 'Route stop gezet:'

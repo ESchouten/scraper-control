@@ -9,8 +9,8 @@
 
 namespace lely {
 
-// Bluetooth link. ESP32: NimBLETransport. App/Python: HostTransport (capi/lely_c.cpp).
-// PC tests: a pipe to the simulator.
+// The link to the robot. Buttons: BleSerialLink (firmware/lib). Apps and Python: HostTransport
+// (scraper_c.cpp). Tests: a pipe to the simulated robot.
 class Transport {
  public:
   virtual ~Transport() {}
@@ -37,7 +37,7 @@ enum class Lang { Nl, En };
 Lang langFromCode(const char* code);              // "en", "en_US", ... -> En; else Nl
 const char* resultText(Result r, Lang l = Lang::Nl);
 
-// Progress while a command runs, for a UI (same numbers as LELY_STEP_* in lely_c.h).
+// Progress while a command runs, for a UI (same numbers as SCRAPER_STEP_* in scraper_c.h).
 enum class Step {
   Linked = 1,       // Bluetooth link open
   Granted = 2,      // PIN accepted
@@ -108,7 +108,7 @@ class Robot {
   // Settings only, nothing moves. Busy if HANDBEDIENING is not on the screen.
   Result manualKey(Key k);
   // The robot drives while Start/Stop is held: driveBegin sends "down", driveHold keeps it
-  // held (repeat every 100 ms, as the Lely app does) and must be called in a loop, driveEnd
+  // held (repeat every 100 ms) and must be called in a loop, driveEnd
   // sends "up". disconnect() and exitManual() also end a drive.
   Result driveBegin();
   void driveHold(uint32_t ms);

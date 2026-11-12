@@ -12,7 +12,6 @@ SerialT Serial;
 WiFiT WiFi;
 EspT ESP;
 UpdateT Update;
-ArduinoOTAT ArduinoOTA;
 
 static uint32_t now = 0;
 uint32_t millis() { return now; }
@@ -38,46 +37,46 @@ static void shot(const char* name) {
   std::printf("%s\n", path.c_str());
 }
 
-// Every screen once per language (nl-1-start, en-1-start, ...).
+// Every screen once per language (nl-1-home, en-1-home, ...).
 static void all() {
   String rb = String(tx->route) + " B";
   haveSeen = false;
-  idle(); shot("1-start");
+  idle(); shot("1-home");
   seen = Status(); seen.planning = 1; seen.nextRide = "21:00"; seen.clock = "08:00:00"; seen.batteryMv = 25400;
   seenAt = now; haveSeen = true; now += 12 * 60000;
-  idle(); shot("1b-start-gezien");
-  idle(); ui::fillHold(0, 900); shot("1c-start-vasthouden");   // left held 0.9 s: filling up
-  syncing = true; idle(); shot("1d-start-lezen"); syncing = false;
+  idle(); shot("1b-home-seen");
+  idle(); ui::fillHold(0, 900); shot("1c-home-holding");   // left held 0.9 s: filling up
+  syncing = true; idle(); shot("1d-home-reading"); syncing = false;
   haveSeen = false;
-  drawProgress(rb, nextStep(Kind::Route, int(Step::ScreenReady), true), 3, 8); shot("2-bezig");
+  drawProgress(rb, nextStep(Kind::Route, int(Step::ScreenReady), true), 3, 8); shot("2-busy");
   Status st;
   st.planning = 1; st.nextRide = "21:00"; st.batteryMv = 25400;
-  drawResult(rb, true, rb + " " + tx->started, st, ""); shot("3-gelukt");
+  drawResult(rb, true, rb + " " + tx->started, st, ""); shot("3-done");
   bool en = tx == &kEn;
   drawResult(rb, false, en ? "Robot is busy" : "Robot is bezig", st,
              String(en ? "not on home screen or route menu; nothing pressed" : "niet op beginscherm of routemenu; niets gedrukt")
-             + "\nROUTE->TIJDPAD\nRoute: B"); shot("4-fout");
+             + "\nROUTE->TIJDPAD\nRoute: B"); shot("4-error");
   st = Status(); st.planning = 0; st.nextRide = "21:00"; st.route = ""; st.action = en ? "Charging" : "Laden"; st.batteryMv = 25600;
   drawResult("Status", true, tx->robotStatus, st, ""); shot("5-status");
   ManualState m; m.left = 1; m.right = 0; m.forward = 1;
-  drawManual(m, false); shot("7-handbediening");
-  drawManual(m, false); ui::fillHold(0, 1100); shot("7b-handbediening-klaar");
+  drawManual(m, false); shot("7-manual");
+  drawManual(m, false); ui::fillHold(0, 1100); shot("7b-manual-holding");
   m.right = 1;
-  drawManual(m, true); shot("8-rijden");
+  drawManual(m, true); shot("8-driving");
   PinEditor e("4321"); e.next();
-  drawPin(e, tx->enterPin); shot("6-pincode");
-  drawSettings(); shot("9-instellingen");
-  drawSettings(tx->settingsWifiLooking); shot("9b-instellingen-update");
-  drawFinishQuestion(); shot("15-stopvraag");
-  drawResult(rb, true, tx->routeCancelled, st, ""); shot("16-afgebroken");
+  drawPin(e, tx->enterPin); shot("6-pin");
+  drawSettings(); shot("9-settings");
+  drawSettings(tx->settingsWifiLooking); shot("9b-settings-update");
+  drawFinishQuestion(); shot("15-finish-question");
+  drawResult(rb, true, tx->routeCancelled, st, ""); shot("16-cancelled");
   std::vector<FoundRobot> found = {{"00:12:ff:51:4d:00", "stal", -58}, {"00:12:ff:51:4d:01", "", -77}};
-  drawList(tx->robotWord, robotLines(found), 1); shot("10-robot-kiezen");
+  drawList(tx->robotWord, robotLines(found), 1); shot("10-choose-robot");
   wifiSsid = "Stal-wifi";
   drawWifi(); shot("11-wifi");
-  drawList(tx->networkWord, {String("Stal-wifi  -48 dBm"), String("Thuis  -67 dBm"), String("Gast  -80 dBm")}, 0); shot("12-netwerk");
+  drawList(tx->networkWord, {String("Stal-wifi  -48 dBm"), String("Thuis  -67 dBm"), String("Gast  -80 dBm")}, 0); shot("12-network");
   TextEditor te("geheim");
   te.next(); te.next(); te.next();
-  drawTyping(te, "Stal-wifi"); shot("13-wachtwoord");
+  drawTyping(te, "Stal-wifi"); shot("13-password");
   busy(tx->wpsWord, tx->wpsPress); ui::hint(tx->pressToStop); shot("14-wps");
 }
 

@@ -1,6 +1,5 @@
 {
   "name": "ScraperDriver",
-  "version": "1.6.0",
   "description": "Lely Discovery driver: protocol, screens and the safety rules behind the robot API",
   "frameworks": "*",
   "platforms": "*",
