@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-  <color name="widget_bg">#F2211E1E</color>
+  <color name="widget_bg">#FF1E1C1C</color>
+  <color name="widget_tile">#FF2C2928</color>
   <color name="widget_text">#F2EDEC</color>
   <color name="widget_muted">#B9B0AE</color>
-  <color name="widget_title">#E5394F</color>
+  <color name="widget_play_bg">#3A2326</color>
   <style name="Theme.Scraper.Dialog" parent="@android:style/Theme.DeviceDefault.Dialog.NoActionBar" />
 </resources>

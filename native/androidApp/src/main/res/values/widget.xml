@@ -7,20 +7,42 @@
   <string name="widget_tile_description">One route as a tile: tap to start</string>
   <string name="widget_tap_route">Tap a route</string>
   <string name="widget_tap_to_start">Tap to start</string>
-  <color name="widget_bg">#FAFFFFFF</color>
+  <color name="widget_bg">#FFFFFFFF</color>
+  <color name="widget_tile">#F6F4F3</color>
   <color name="widget_text">#1C1B1B</color>
   <color name="widget_muted">#5E5857</color>
-  <color name="widget_title">#C8102E</color>
   <color name="widget_button">#C8102E</color>
-  <style name="WidgetRouteButton">
+  <color name="widget_play_bg">#FFE5E7</color>
+  <style name="WidgetRouteTile">
     <item name="android:layout_width">0dp</item>
     <item name="android:layout_height">match_parent</item>
     <item name="android:layout_weight">1</item>
-    <item name="android:layout_margin">4dp</item>
+    <item name="android:layout_marginStart">4dp</item>
+    <item name="android:layout_marginEnd">4dp</item>
+    <item name="android:background">@drawable/widget_tile</item>
+    <item name="android:gravity">center</item>
+    <item name="android:orientation">vertical</item>
+    <item name="android:paddingStart">4dp</item>
+    <item name="android:paddingEnd">4dp</item>
+  </style>
+  <style name="WidgetRouteLetter">
+    <item name="android:layout_width">40dp</item>
+    <item name="android:layout_height">40dp</item>
     <item name="android:background">@drawable/widget_button</item>
     <item name="android:gravity">center</item>
     <item name="android:textColor">#FFFFFF</item>
-    <item name="android:textSize">26sp</item>
+    <item name="android:textSize">20sp</item>
+    <item name="android:textStyle">bold</item>
+  </style>
+  <style name="WidgetRouteName">
+    <item name="android:layout_width">match_parent</item>
+    <item name="android:layout_height">wrap_content</item>
+    <item name="android:layout_marginTop">6dp</item>
+    <item name="android:ellipsize">end</item>
+    <item name="android:gravity">center</item>
+    <item name="android:maxLines">1</item>
+    <item name="android:textColor">@color/widget_text</item>
+    <item name="android:textSize">12sp</item>
     <item name="android:textStyle">bold</item>
   </style>
   <style name="Theme.Scraper.Dialog" parent="@android:style/Theme.DeviceDefault.Light.Dialog.NoActionBar" />
