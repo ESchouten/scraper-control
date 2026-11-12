@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Routes A-D, one row high: robot and schedule switch on the left, then smaller route tiles.
+     The same ids as widget_routes (WidgetViews fills either). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:padding="8dp">
+
+    <LinearLayout
+        android:layout_width="52dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="2dp"
+        android:layout_marginEnd="3dp"
+        android:gravity="center_horizontal"
+        android:orientation="vertical">
+        <TextView
+            android:id="@+id/title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:maxLines="1"
+            android:text="Scraper Control"
+            android:textColor="@color/widget_text"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+        <LinearLayout
+            android:id="@+id/schedule"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:padding="3dp">
+            <ImageView
+                android:id="@+id/schedule_switch"
+                android:layout_width="26dp"
+                android:layout_height="15dp"
+                android:src="@drawable/widget_switch_on"
+                android:visibility="gone"
+                android:importantForAccessibility="no" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <LinearLayout android:id="@+id/route_a" style="@style/WidgetRouteTile.Small">
+        <TextView android:id="@+id/letter_a" style="@style/WidgetRouteLetter.Small" android:text="A" />
+        <TextView android:id="@+id/name_a" style="@style/WidgetRouteName.Small" android:text="Route A" />
+    </LinearLayout>
+    <LinearLayout android:id="@+id/route_b" style="@style/WidgetRouteTile.Small">
+        <TextView android:id="@+id/letter_b" style="@style/WidgetRouteLetter.Small" android:text="B" />
+        <TextView android:id="@+id/name_b" style="@style/WidgetRouteName.Small" android:text="Route B" />
+    </LinearLayout>
+    <LinearLayout android:id="@+id/route_c" style="@style/WidgetRouteTile.Small">
+        <TextView android:id="@+id/letter_c" style="@style/WidgetRouteLetter.Small" android:text="C" />
+        <TextView android:id="@+id/name_c" style="@style/WidgetRouteName.Small" android:text="Route C" />
+    </LinearLayout>
+    <LinearLayout android:id="@+id/route_d" style="@style/WidgetRouteTile.Small">
+        <TextView android:id="@+id/letter_d" style="@style/WidgetRouteLetter.Small" android:text="D" />
+        <TextView android:id="@+id/name_d" style="@style/WidgetRouteName.Small" android:text="Route D" />
+    </LinearLayout>
+</LinearLayout>

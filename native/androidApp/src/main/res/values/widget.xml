@@ -47,5 +47,23 @@
     <item name="android:textSize">13sp</item>
     <item name="android:textStyle">bold</item>
   </style>
+  <!-- one row high (widget_routes_row): smaller tiles -->
+  <style name="WidgetRouteTile.Small">
+    <item name="android:layout_marginStart">3dp</item>
+    <item name="android:layout_marginEnd">3dp</item>
+    <item name="android:paddingStart">2dp</item>
+    <item name="android:paddingEnd">2dp</item>
+    <item name="android:paddingTop">7dp</item>
+    <item name="android:paddingBottom">6dp</item>
+  </style>
+  <style name="WidgetRouteLetter.Small">
+    <item name="android:layout_width">28dp</item>
+    <item name="android:layout_height">28dp</item>
+    <item name="android:textSize">15sp</item>
+  </style>
+  <style name="WidgetRouteName.Small">
+    <item name="android:layout_marginTop">3dp</item>
+    <item name="android:textSize">11.5sp</item>
+  </style>
   <style name="Theme.Scraper.Dialog" parent="@android:style/Theme.DeviceDefault.Light.Dialog.NoActionBar" />
 </resources>

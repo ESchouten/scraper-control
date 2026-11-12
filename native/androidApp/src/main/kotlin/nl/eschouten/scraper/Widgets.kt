@@ -65,7 +65,7 @@ object WidgetViews {
       }
     } else {
       val b = WidgetBridge.bar(store, robotUid)
-      RemoteViews(c.packageName, R.layout.widget_routes).apply {
+      RemoteViews(c.packageName, if (oneRow(c, widgetId)) R.layout.widget_routes_row else R.layout.widget_routes).apply {
         setTextViewText(R.id.title, b.title)
         val shown = b.routes.associateBy { it.route }
         tiles.forEach { (letter, t) ->
@@ -95,6 +95,10 @@ object WidgetViews {
   }
 
   /** A tap for [WidgetTapReceiver]: a "route", or the schedule switched "on" (true/false). */
+  /** Placed one cell row high (the launcher's smallest height for it, in dp): the compact layout. */
+  private fun oneRow(c: Context, widgetId: Int) =
+    AppWidgetManager.getInstance(c).getAppWidgetOptions(widgetId).getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT) in 1 until 110
+
   private fun tap(c: Context, code: Int, robotUid: String?, what: Intent.() -> Unit): PendingIntent {
     val i = Intent(c, WidgetTapReceiver::class.java).setAction("nl.eschouten.scraper.TAP").putExtra("robot", robotUid).apply(what)
     return PendingIntent.getBroadcast(c, code, i, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
@@ -104,6 +108,11 @@ object WidgetViews {
 class RoutesWidget : AppWidgetProvider() {
   override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
     ids.forEach { manager.updateAppWidget(it, WidgetViews.views(context, it, tile = false)) }
+  }
+
+  /** Resized: one row high or more picks the layout. */
+  override fun onAppWidgetOptionsChanged(context: Context, manager: AppWidgetManager, id: Int, options: Bundle) {
+    manager.updateAppWidget(id, WidgetViews.views(context, id, tile = false))
   }
 }
 
