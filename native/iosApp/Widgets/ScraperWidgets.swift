@@ -87,7 +87,14 @@ struct BarProvider: AppIntentTimelineProvider {
   func entry(_ c: RobotConfig) -> BarEntry { BarEntry(date: Date(), bar: WidgetBridge.shared.bar(store: widgetStore(), robotUid: c.robot?.id)) }
   func placeholder(in context: Context) -> BarEntry { entry(RobotConfig()) }
   func snapshot(for c: RobotConfig, in context: Context) async -> BarEntry { entry(c) }
-  func timeline(for c: RobotConfig, in context: Context) async -> Timeline<BarEntry> { Timeline(entries: [entry(c)], policy: .never) }
+  // A second entry when the next run has passed: from then on the bar shows the schedule without its time.
+  func timeline(for c: RobotConfig, in context: Context) async -> Timeline<BarEntry> {
+    let first = entry(c)
+    guard let at = first.bar.changesAt?.int64Value else { return Timeline(entries: [first], policy: .never) }
+    let later = BarEntry(date: Date(timeIntervalSince1970: TimeInterval(at) / 1000),
+                         bar: WidgetBridge.shared.bar(store: widgetStore(), robotUid: c.robot?.id, now: at))
+    return Timeline(entries: [first, later], policy: .never)
+  }
 }
 
 struct BarView: View {
