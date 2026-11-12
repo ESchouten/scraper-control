@@ -15,7 +15,7 @@ android {
     versionCode = (providers.exec { commandLine("git", "rev-list", "--count", "HEAD"); isIgnoreExitValue = true }
       .standardOutput.asText.get().trim().toIntOrNull() ?: 1) +
       (providers.gradleProperty("scraper.buildBase").orNull?.toIntOrNull() ?: 0)
-    versionName = providers.gradleProperty("scraper.version").get()
+    versionName = "${providers.gradleProperty("scraper.version").get()}.$versionCode"   // 1.6.120
     ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
     externalNativeBuild { cmake { arguments += "-DSCRAPER_DRIVER=${providers.gradleProperty("scraper.driver").get()}" } }
   }

@@ -43,7 +43,7 @@
 #ifndef ROBOT_NAME
 #define ROBOT_NAME ""
 #endif
-#ifndef FW_VERSION  // set by version.py (PlatformIO): the apps' version and the commit count
+#ifndef FW_VERSION  // set by version.py (PlatformIO): the apps' version (1.6.120) and its build (120)
 #define FW_VERSION "dev"
 #define FW_BUILD 0
 #endif
@@ -1034,7 +1034,7 @@ static bool offerUpdate(bool quiet) {
   String body;
   bool got = fetchText(String(kReleaseUrl) + kManifest, body);
   Manifest m = parseManifest(body.c_str(), FW_BOARD);
-  String own = String(FW_VERSION) + " (" + String(FW_BUILD) + ")";
+  String own = FW_VERSION;
   if (!got || !m.complete()) {
     wifiDown();
     notice(tx->updateTitle, tx->noUpdateInfo, 2);
@@ -1055,7 +1055,7 @@ static bool offerUpdate(bool quiet) {
     ui::Screen scr(tx->updateTitle);
     card(10, 56, 300, 136, kCard);
     disc(22, 66, 40, ICON_DOWNLOAD, kRedSoft, kRed);
-    int y = wrap(String(tx->newVersion) + " " + m.version.c_str() + " (" + String((int)m.build) + ")", 74, 70, 226, kTitle, kInk, 140);
+    int y = wrap(String(tx->newVersion) + " " + m.version.c_str(), 74, 70, 226, kTitle, kInk, 140);
     text(String(tx->versionRow) + " " + own, 74, y + 4, kBody, kMuted);
     String label[3] = {"", String(ICON_DOWNLOAD) + " " + tx->install, String(ICON_PREV) + " " + tx->back};
     Pill style[3] = {Pill::Neutral, Pill::Primary, Pill::Neutral};
@@ -1243,7 +1243,7 @@ static void drawWifi() {
   ui::Screen scr(tx->wifiRow);
   card(10, 56, 300, 136, kCard);
   settingRow(0, ICON_WIFI, tx->networkWord, wifiSsid.isEmpty() ? String(tx->notSet) : wifiSsid);
-  settingRow(1, ICON_DOWNLOAD, tx->versionRow, String(FW_VERSION) + " (" + String(FW_BUILD) + ")");
+  settingRow(1, ICON_DOWNLOAD, tx->versionRow, FW_VERSION);
   String label[3] = {String(ICON_SEARCH) + " " + tx->networkWord, tx->wpsWord, String(ICON_DOWNLOAD) + " " + tx->updateWord};
   Pill style[3] = {Pill::Neutral, Pill::Neutral, Pill::Neutral};
   pills(label, style);
@@ -1275,7 +1275,7 @@ static void drawSettings(const char* line = nullptr) {
   card(10, 56, 300, 136, kCard);
   settingRow(0, ICON_ROBOT, tx->robotRow, savedAddress.empty() ? String(tx->automatic) : String(savedAddress.c_str()));
   settingRow(1, ICON_WIFI, tx->wifiRow, wifiSsid.isEmpty() ? String(tx->notSet) : wifiSsid);
-  String version = String(FW_VERSION) + " (" + String(FW_BUILD) + ")";
+  String version = FW_VERSION;
   if (line) settingRow(2, ICON_SYNC, tx->versionRow, line);   // looking for an update
   else settingRow(2, ICON_DOWNLOAD, tx->versionRow, version);
   String label[3] = {String(ICON_KEY) + " " + tx->pinTitle, String(ICON_ROBOT) + " " + tx->robotWord, String(ICON_WIFI) + " " + tx->wifiRow};

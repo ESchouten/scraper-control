@@ -51,12 +51,12 @@ jobs:
           FIRMWARE_SIGNING_KEY: ${{ secrets.FIRMWARE_SIGNING_KEY }}
         run: |
           test -n "$FIRMWARE_SIGNING_KEY" || { echo "secret FIRMWARE_SIGNING_KEY is missing"; exit 1; }
-          VERSION=$(sed -n 's/^scraper.version=//p' native/gradle.properties)
           BUILD=$(( $(git rev-list --count HEAD) + $(sed -n 's/^scraper.buildBase=//p' native/gradle.properties || echo 0) ))
+          VERSION="$(sed -n 's/^scraper.version=//p' native/gradle.properties).$BUILD"   # 1.6.120
           mkdir out
           BIN="out/scraper-control-m5stack-core-$VERSION.bin"
           cp firmware/.pio/build/m5stack-core/firmware.bin "$BIN"
-          echo "# Scraper Control $VERSION ($BUILD): one block per board" > out/update.txt
+          echo "# Scraper Control $VERSION: one block per board" > out/update.txt
           python3 firmware/sign_release.py "$BIN" --board m5stack-core --key "$FIRMWARE_SIGNING_KEY" --version "$VERSION" --build "$BUILD" >> out/update.txt
           # TRANSITION ONLY (M5s on 1.6.0 or older look for these names); remove later
           cp "$BIN" out/firmware.bin
@@ -98,7 +98,7 @@ jobs:
           SCRAPER_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: |
           ./gradlew :androidApp:assembleRelease --console=plain
-          VERSION=$(sed -n 's/^scraper.version=//p' gradle.properties)
+          VERSION="$(sed -n 's/^scraper.version=//p' gradle.properties).$(( $(git rev-list --count HEAD) + $(sed -n 's/^scraper.buildBase=//p' gradle.properties || echo 0) ))"
           mkdir ../out
           cp androidApp/build/outputs/apk/release/*.apk "../out/scraper-control-$VERSION.apk"
       - uses: actions/upload-artifact@v4
@@ -157,12 +157,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          VERSION=$(sed -n 's/^scraper.version=//p' native/gradle.properties)
           BUILD=$(( $(git rev-list --count HEAD) + $(sed -n 's/^scraper.buildBase=//p' native/gradle.properties || echo 0) ))
+          VERSION="$(sed -n 's/^scraper.version=//p' native/gradle.properties).$BUILD"   # 1.6.120
           ls -laR dist
-          gh release create "v$VERSION-$BUILD" dist/* \
-            --title "Scraper Control $VERSION ($BUILD)" \
-            --notes "Scraper Control $VERSION, build $BUILD.
+          gh release create "v$VERSION" dist/* \
+            --title "Scraper Control $VERSION" \
+            --notes "Scraper Control $VERSION.
 
           - M5 buttons: they install this version themselves (settings, or automatically once a day / on a new wifi connection).
           - Android: install the .apk, or follow this repository with Obtainium for automatic updates.

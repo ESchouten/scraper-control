@@ -97,7 +97,7 @@ fun settingsScreen(s: ControllerState, now: Long, platform: Platform): SettingsS
   val about = Section(
     tr.about,
     listOf(
-      Row(RowId.ABOUT, null, APP_NAME, "${tr.version(AppVersion.NAME, AppVersion.BUILD)}\n${tr.disclaimer}", enabled = false),
+      Row(RowId.ABOUT, null, APP_NAME, "${tr.version(AppVersion.NAME)}\n${tr.disclaimer}", enabled = false),
       Row(RowId.RESET, Glyph.Restart, tr.resetSetup, tr.resetSetupSub),
     ),
   )

@@ -422,7 +422,7 @@ class Tr(val code: String) {
   val testConnectionSub: String get() = t("Verbinden, status lezen en weer los", "Connect, read status and disconnect")
   val makeActive: String get() = t("Maakt deze robot de robot in gebruik", "Makes this robot the one in use")
   val connectionWorks: String get() = t("De verbinding werkt", "The connection works")
-  fun version(name: String, build: Int): String = t("Versie $name (build $build)", "Version $name (build $build)")
+  fun version(name: String): String = t("Versie $name", "Version $name")   // 1.6.120: the last number is the build
   val readRoutes: String get() = t("Routes uitlezen", "Read routes")
   val readRoutesSub: String get() = t("Lees welke deelroutes onder A t/m D zitten", "Read which sub-routes make up A to D")
   val routesRead: String get() = t("Routes gelezen", "Routes read")

@@ -16,9 +16,9 @@ val apiDir = rootDir.resolve("../core")
 val secretsFile = rootDir.resolve("../drivers/secrets.h") // tools/secrets.py; optional
 
 // --- the app's version as a constant (AppVersion), the same for every app ---
-val appVersion = providers.gradleProperty("scraper.version").get()
 val commitCount = providers.exec { commandLine("git", "rev-list", "--count", "HEAD"); isIgnoreExitValue = true }
   .standardOutput.asText.map { (it.trim().toIntOrNull() ?: 0) + (providers.gradleProperty("scraper.buildBase").orNull?.toIntOrNull() ?: 0) }
+val appVersion = commitCount.map { "${providers.gradleProperty("scraper.version").get()}.$it" }   // 1.6.120
 val versionDir = layout.buildDirectory.dir("generated/version/kotlin")
 val generateVersion by tasks.registering {
   val name = appVersion
@@ -30,9 +30,9 @@ val generateVersion by tasks.registering {
     val f = versionDir.get().asFile.resolve("nl/eschouten/scraper/AppVersion.kt")
     f.parentFile.mkdirs()
     f.writeText(
-      "// Generated from gradle.properties (scraper.version) and the commit count. Do not edit.\n" +
+      "// Generated from gradle.properties (scraper.version) + the build number. Do not edit.\n" +
         "package nl.eschouten.scraper\n\n" +
-        "object AppVersion {\n  const val NAME = \"$name\"\n  const val BUILD = ${build.get()}\n}\n",
+        "object AppVersion {\n  const val NAME = \"${name.get()}\"\n  const val BUILD = ${build.get()}\n}\n",
     )
   }
 }

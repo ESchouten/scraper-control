@@ -18,9 +18,9 @@ for name, have in (("Compose", have_c), ("iOS", have_s)):
     if extra:
         bad = True
         print(f"{name}: tests not in scenarios.json: {', '.join(extra)}")
-# One version for every app: gradle.properties (Android, About row) = project.yml (iOS).
+# One MAJOR.MINOR for every app: gradle.properties (Android, About row) = project.yml (iOS).
 gradle_v = re.search(r"^scraper\.version=(\S+)", (root / "gradle.properties").read_text(), re.M).group(1)
-ios_v = set(re.findall(r"MARKETING_VERSION:\s*(\S+)", (root / "iosApp/project.yml").read_text()))
+ios_v = set(v.strip('"') for v in re.findall(r"MARKETING_VERSION:\s*(\S+)", (root / "iosApp/project.yml").read_text()))
 if ios_v != {gradle_v}:
     bad = True
     print(f"version: gradle.properties {gradle_v}, iosApp/project.yml {', '.join(sorted(ios_v))}")

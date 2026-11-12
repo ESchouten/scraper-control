@@ -45,7 +45,11 @@ compose.desktop {
         org.jetbrains.compose.desktop.application.dsl.TargetFormat.Dmg,
         org.jetbrains.compose.desktop.application.dsl.TargetFormat.Deb,
       )
-      packageVersion = providers.gradleProperty("scraper.version").get()
+      // 1.6.120: MAJOR.MINOR from gradle.properties, the build number as the third number
+      packageVersion = providers.gradleProperty("scraper.version").get() + "." +
+        ((providers.exec { commandLine("git", "rev-list", "--count", "HEAD"); isIgnoreExitValue = true }
+          .standardOutput.asText.get().trim().toIntOrNull() ?: 0) +
+          (providers.gradleProperty("scraper.buildBase").orNull?.toIntOrNull() ?: 0))
     }
   }
 }
