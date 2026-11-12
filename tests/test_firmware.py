@@ -6,6 +6,7 @@ import os, subprocess, sys, tempfile
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "firmware", "test_host"))
 from driver import host_flags  # noqa: E402
+import lvgl_host  # noqa: E402
 
 BIN = os.path.join(tempfile.gettempdir(), "scraper_fw_test")
 
@@ -57,7 +58,7 @@ def firmware_syntax():
             dst.write(src.read())
         cfg = ["-I", tmp]
     subprocess.check_call(["g++", "-std=c++17", "-Wall", "-Werror=return-type", "-fsyntax-only", "-I", os.path.join(fw, "test_host", "stubs"),
-                           *cfg, *host_flags(), os.path.join(fw, "src", "main.cpp")])
+                           *cfg, *host_flags(), *lvgl_host.flags(), os.path.join(fw, "src", "main.cpp")])
     print("ok   firmware main.cpp compiles (with stubs)")
 
 

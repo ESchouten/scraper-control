@@ -18,13 +18,15 @@ enum { TFT_BLACK, TFT_WHITE, TFT_YELLOW, TFT_GREEN, TFT_RED };
 namespace m5 { struct Button_Class { bool wasPressed(); bool wasReleased(); bool isPressed(); };
   struct Power_Class { enum is_charging_t { is_discharging, is_charging, charge_unknown }; int getBatteryLevel(); is_charging_t isCharging(); }; }
 struct GFXfont { int id; };
+namespace m5gfx { struct rgb565_t { uint16_t raw; }; }
 namespace fonts { extern const GFXfont FreeSans9pt7b, FreeSansBold9pt7b, FreeSansBold12pt7b, FreeSansBold18pt7b; }
 struct Disp { void fillScreen(uint16_t); void setTextColor(uint16_t); void setTextColor(uint16_t,uint16_t); void setTextSize(int);
   void setCursor(int,int); void println(const String&); void print(const char*); void print(const String&); int width(); int height();
   void printf(const char*,...); void setFont(const GFXfont*); void drawString(const char*,int,int); int textWidth(const char*); int fontHeight();
   void fillRect(int,int,int,int,uint16_t); void fillRoundRect(int,int,int,int,int,uint16_t); void drawRoundRect(int,int,int,int,int,uint16_t);
   void fillCircle(int,int,int,uint16_t); void drawCircle(int,int,int,uint16_t); void fillTriangle(int,int,int,int,int,int,uint16_t);
-  void drawLine(int,int,int,int,uint16_t); void drawFastHLine(int,int,int,uint16_t); void setBrightness(uint8_t); };
+  void drawLine(int,int,int,int,uint16_t); void drawFastHLine(int,int,int,uint16_t); void setBrightness(uint8_t);
+  void pushImage(int,int,int,int,const m5gfx::rgb565_t*); };
 struct Spk { void tone(int,int); };
 struct M5T { Disp Display; Spk Speaker; m5::Power_Class Power; m5::Button_Class BtnA,BtnB,BtnC; void update(); int config(); void begin(int); };
 extern M5T M5;

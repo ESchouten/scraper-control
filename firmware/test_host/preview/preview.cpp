@@ -1,45 +1,44 @@
-// Draws the firmware's screens on a PC: the display calls are written to stdout and
-// render.py paints them with the same FreeSans fonts. Run: python3 render.py
-#include <cstdarg>
+// Draws the firmware's screens on a PC with the real LVGL code (Ui.h): every screen is
+// rendered into a 320x240 frame and written as raw RGB565, which render.py makes into PNG.
+// Run: python3 firmware/test_host/preview/render.py [out_dir]
 #include <cstdio>
+#include <string>
 
 #include "../../src/main.cpp"
-#include "metrics.h"   // made by render.py: glyph advances + heights of the fonts
 
-const GFXfont fonts::FreeSans9pt7b{0}, fonts::FreeSansBold9pt7b{1}, fonts::FreeSansBold12pt7b{2},
-    fonts::FreeSansBold18pt7b{3};
 M5T M5;
 SerialT Serial;
+// main.cpp's globals that only exist on the M5 (the loader wants their data, not their code)
+WiFiT WiFi;
+EspT ESP;
+UpdateT Update;
+ArduinoOTAT ArduinoOTA;
+
+static uint32_t now = 0;
+uint32_t millis() { return now; }
+void delay(uint32_t ms) { now += ms; }
+
+static uint16_t frame[240][320];
 void Disp::setBrightness(uint8_t) {}
-static int font = 0;
-static uint16_t color = 0;
-
-void Disp::setFont(const GFXfont* f) { font = f->id; }
-void Disp::setTextColor(uint16_t c) { color = c; }
-void Disp::setTextColor(uint16_t c, uint16_t) { color = c; }
-int Disp::fontHeight() { return kHeight[font]; }
-int Disp::textWidth(const char* s) {
-  int w = 0;
-  for (; *s; s++) w += (*s >= 32 && *s < 127) ? kAdvance[font][*s - 32] : 0;
-  return w;
+void Disp::pushImage(int x, int y, int w, int h, const m5gfx::rgb565_t* px) {
+  for (int j = 0; j < h; j++)
+    for (int i = 0; i < w; i++)
+      if (y + j >= 0 && y + j < 240 && x + i >= 0 && x + i < 320) frame[y + j][x + i] = px[j * w + i].raw;
 }
-int Disp::width() { return 320; }
-int Disp::height() { return 240; }
-void Disp::drawString(const char* s, int x, int y) { ::printf("text %d %d %d %d %s\n", font, color, x, y, s); }
-void Disp::fillScreen(uint16_t c) { ::printf("rect 0 0 320 240 0 %d\n", c); }
-void Disp::fillRect(int x, int y, int w, int h, uint16_t c) { ::printf("rect %d %d %d %d 0 %d\n", x, y, w, h, c); }
-void Disp::fillRoundRect(int x, int y, int w, int h, int r, uint16_t c) { ::printf("rect %d %d %d %d %d %d\n", x, y, w, h, r, c); }
-void Disp::drawRoundRect(int x, int y, int w, int h, int r, uint16_t c) { ::printf("frame %d %d %d %d %d %d\n", x, y, w, h, r, c); }
-void Disp::fillCircle(int x, int y, int r, uint16_t c) { ::printf("disc %d %d %d %d\n", x, y, r, c); }
-void Disp::drawCircle(int x, int y, int r, uint16_t c) { ::printf("ring %d %d %d %d\n", x, y, r, c); }
-void Disp::fillTriangle(int a, int b, int c, int d, int e, int f, uint16_t k) { ::printf("tri %d %d %d %d %d %d %d\n", a, b, c, d, e, f, k); }
-void Disp::drawLine(int a, int b, int c, int d, uint16_t k) { ::printf("line %d %d %d %d %d\n", a, b, c, d, k); }
-void Disp::drawFastHLine(int x, int y, int w, uint16_t c) { ::printf("line %d %d %d %d %d\n", x, y, x + w - 1, y, c); }
+bool m5::Button_Class::isPressed() { return false; }
 
+static std::string out = ".";
 static const char* lang = "nl";
-static void shot(const char* name) { ::printf("shot %s-%s\n", lang, name); fflush(stdout); }
+static void shot(const char* name) {
+  ui::refresh();
+  std::string path = out + "/" + lang + "-" + name + ".rgb565";
+  FILE* f = std::fopen(path.c_str(), "wb");
+  std::fwrite(frame, sizeof frame, 1, f);
+  std::fclose(f);
+  std::printf("%s\n", path.c_str());
+}
 
-// Every screen once per language (nl-1-start.png, en-1-start.png, ...).
+// Every screen once per language (nl-1-start, en-1-start, ...).
 static void all() {
   String rb = String(tx->route) + " B";
   idle(); shot("1-start");
@@ -70,11 +69,14 @@ static void all() {
   drawList(tx->networkWord, {String("Stal-wifi  -48 dBm"), String("Thuis  -67 dBm"), String("Gast  -80 dBm")}, 0); shot("12-netwerk");
   TextEditor te("geheim");
   te.next(); te.next(); te.next();
-  drawTyping(te, "Stal-wifi", true); shot("13-wachtwoord");
+  drawTyping(te, "Stal-wifi"); shot("13-wachtwoord");
   busy(tx->wpsWord, tx->wpsPress); ui::hint(tx->pressToStop); shot("14-wps");
 }
 
-int main() {
+int main(int argc, char** argv) {
+  if (argc > 1) out = argv[1];
+  ui::animate = false;   // still pictures
+  ui::begin();
   tx = &kNl; lang = "nl"; all();
   tx = &kEn; lang = "en"; all();
 }

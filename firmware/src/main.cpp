@@ -1,7 +1,7 @@
 // Scraper Control buttons for M5Stack Basic: left / middle / right button start route A / B / C.
 // Each press: connect (~2 s), start the route with all checks, disconnect.
 // Hold the middle button 1.5 s for manual drive (HANDBEDIENING), see manualSession().
-// The screens follow the Scraper Control app's look (red header, light cards).
+// The screens follow the Scraper Control app's look (red header, light cards), drawn with LVGL (Ui.h).
 // Hold the left button 1.5 s to switch the planning (tijdpad) on or off.
 // Hold the right button 1.5 s for the settings: PIN, which robot, wifi (set up on the M5
 // itself, or WPS) and updates (signed releases from GitHub).
@@ -31,6 +31,7 @@
 #include "BleSerialLink.h"
 #include "TextEditor.h"
 #include "Texts.h"
+#include "Ui.h"
 #include "config.h"
 
 #ifndef ROBOT_PIN
@@ -82,140 +83,21 @@ static const uint8_t kBright = 160, kDim = 20;
 static uint32_t lastActive = 0;
 static int dimLevel = 0;   // 0 bright, 1 dim
 
-// ---- look: same colours and shapes as the Scraper Control app (app/lib/theme.dart) ----
-namespace ui {
-constexpr uint16_t rgb(uint8_t r, uint8_t g, uint8_t b) {
-  return uint16_t(((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3));
-}
-// uint16_t on purpose: M5GFX reads a uint16_t as RGB565 (a uint32_t would be RGB888)
-const uint16_t kRed = rgb(0xC8, 0x10, 0x2E), kRedDeep = rgb(0x9B, 0x0C, 0x24), kRedSoft = rgb(0xFF, 0xE5, 0xE7);
-const uint16_t kBg = rgb(0xF6, 0xF4, 0xF3), kCard = rgb(0xFF, 0xFF, 0xFF), kLine = rgb(0xE4, 0xDF, 0xDE);
-const uint16_t kChip = rgb(0xF0, 0xED, 0xEC), kInk = rgb(0x1C, 0x1B, 0x1B), kMuted = rgb(0x5E, 0x58, 0x57);
-const uint16_t kOk = rgb(0x1B, 0x7F, 0x3B), kOkSoft = rgb(0xE3, 0xF4, 0xE8);
-const uint16_t kErr = rgb(0xA8, 0x20, 0x0D), kErrSoft = rgb(0xFC, 0xE8, 0xE4), kWhite = rgb(0xFF, 0xFF, 0xFF);
-
-using Font = decltype(&fonts::FreeSans9pt7b);
-const Font kTitle = &fonts::FreeSansBold12pt7b, kBody = &fonts::FreeSans9pt7b, kBold = &fonts::FreeSansBold9pt7b,
-           kBig = &fonts::FreeSansBold18pt7b;
-
-const int kW = 320, kHeaderH = 48, kFooterY = 200;
-const int kBtnX[3] = {56, 160, 264};   // centres above the three physical buttons
-
-auto& D = M5.Display;
-
-static int textW(const String& s, Font f) { D.setFont(f); return D.textWidth(s.c_str()); }
-
-static void text(const String& s, int x, int y, Font f, uint16_t c) {
-  D.setFont(f);
-  D.setTextColor(c);
-  D.drawString(s.c_str(), x, y);
-}
-
-static void centred(const String& s, int cx, int y, Font f, uint16_t c) { text(s, cx - textW(s, f) / 2, y, f, c); }
-
-// Text from (x, y) inside width w, wrapped at spaces and at '\n'. Stops above maxY.
-// Returns the y below the last line.
-static int wrap(const String& s, int x, int y, int w, Font f, uint16_t c, int maxY) {
-  D.setFont(f);
-  const int lineH = D.fontHeight() + 2;
-  int from = 0;
-  while (from <= (int)s.length()) {
-    int nl = s.indexOf('\n', from);
-    String para = s.substring(from, nl < 0 ? s.length() : nl);
-    do {
-      String line = para;
-      while (line.length() > 1 && textW(line, f) > w) {
-        int cut = line.lastIndexOf(' ', line.length() - 2);
-        line = line.substring(0, cut > 0 ? cut : line.length() - 1);
-      }
-      para = para.substring(line.length());
-      para.trim();
-      if (y + lineH > maxY) return y;
-      text(line, x, y, f, c);
-      y += lineH;
-    } while (para.length() > 0);
-    if (nl < 0) break;
-    from = nl + 1;
-  }
-  return y;
-}
-
-// The app's mark: white tile with a red ring and play triangle (for on the red header).
-static void logo(int x, int y, int s) {
-  D.fillRoundRect(x, y, s, s, s * 27 / 100, kWhite);
-  int cx = x + s / 2, cy = y + s / 2, r = s * 29 / 100;
-  for (int i = 0; i < 2; i++) D.drawCircle(cx, cy, r - i, kRed);
-  D.fillTriangle(x + s * 43 / 100, y + s * 37 / 100, x + s * 43 / 100, y + s * 63 / 100, x + s * 65 / 100, cy, kRed);
-}
-
-// Red header with the logo and a title, light background below it.
-static void screen(const String& title) {
-  for (int y = 0; y < kHeaderH; y++) {   // brand gradient, like the app's header
-    int t = y * 255 / (kHeaderH - 1);
-    D.drawFastHLine(0, y, kW, rgb(0xC8 - (0xC8 - 0x9B) * t / 255, 0x10 - (0x10 - 0x0C) * t / 255, 0x2E - (0x2E - 0x24) * t / 255));
-  }
-  logo(10, 9, 30);
-  text(title, 50, 12, kTitle, kWhite);
-  D.fillRect(0, kHeaderH, kW, 240 - kHeaderH, kBg);
-}
-
-static void card(int x, int y, int w, int h, uint16_t fill, bool border = true) {
-  D.fillRoundRect(x, y, w, h, 12, fill);
-  if (border) D.drawRoundRect(x, y, w, h, 12, kLine);
-}
-
-enum class Pill { None, Primary, Neutral };
-
-// Labels above the physical buttons.
-static void pills(const String (&label)[3], const Pill (&style)[3]) {
-  for (int i = 0; i < 3; i++) {
-    if (style[i] == Pill::None || label[i].isEmpty()) continue;
-    bool primary = style[i] == Pill::Primary;
-    D.fillRoundRect(kBtnX[i] - 47, kFooterY + 6, 94, 30, 15, primary ? kRed : kCard);
-    if (!primary) D.drawRoundRect(kBtnX[i] - 47, kFooterY + 6, 94, 30, 15, kLine);
-    centred(label[i], kBtnX[i], kFooterY + 12, kBold, primary ? kWhite : kInk);
-  }
-}
-
-static void hint(const String& s) { centred(s, kW / 2, kFooterY + 12, kBody, kMuted); }
-
-// Round status icon: tick (ok) or exclamation mark (error).
-static void badge(int cx, int cy, bool ok) {
-  D.fillCircle(cx, cy, 13, ok ? kOk : kErr);
-  if (ok) {
-    for (int i = -1; i <= 1; i++) {
-      D.drawLine(cx - 6, cy + i, cx - 2, cy + 4 + i, kWhite);
-      D.drawLine(cx - 2, cy + 4 + i, cx + 6, cy - 4 + i, kWhite);
-    }
-  } else {
-    D.fillRoundRect(cx - 2, cy - 8, 4, 11, 2, kWhite);
-    D.fillCircle(cx, cy + 6, 2, kWhite);
-  }
-}
-
-static void progressBar(int x, int y, int w, int done, int total) {
-  D.fillRoundRect(x, y, w, 10, 5, kChip);
-  int fw = total > 0 ? w * (done < total ? done : total) / total : 0;
-  if (fw > 0) D.fillRoundRect(x, y, fw < 10 ? 10 : fw, 10, 5, kRed);
-}
-}  // namespace ui
 
 // ---- screens -----------------------------------------------------------------------
 static void idle() {
   using namespace ui;
-  screen("Scraper Control");
+  ui::Screen scr("Scraper Control");
   // legend: the two kinds of labels above the buttons
   card(10, 58, 300, 80, kCard);
-  D.fillRoundRect(22, 72, 26, 14, 7, kRed);
+  box(22, 72, 26, 14, 7, kRed);
   text(tx->shortPress, 58, 68, kBold, kInk);
-  D.fillRoundRect(22, 106, 26, 14, 4, kCard);
-  D.drawRoundRect(22, 106, 26, 14, 4, kMuted);
+  box(22, 106, 26, 14, 4, kCard, kMuted);
   text(tx->holdPress, 58, 102, kBold, kInk);
 
   const char* hold[3] = {tx->holdPlanning, tx->holdManual, tx->holdPin};
   for (int i = 0; i < 3; i++) {
-    D.fillRoundRect(kBtnX[i] - 47, 152, 94, 34, 8, kCard);
-    D.drawRoundRect(kBtnX[i] - 47, 152, 94, 34, 8, kMuted);
+    box(kBtnX[i] - 47, 152, 94, 34, 8, kCard, kMuted);
     centred(hold[i], kBtnX[i], 159, kBold, kInk);
   }
   const char r[3] = {ROUTE_BTN_A, ROUTE_BTN_B, ROUTE_BTN_C};
@@ -255,7 +137,7 @@ static int expectedSteps(Kind job, bool planningOn) {
 
 static void drawProgress(const String& title, const String& now, int done, int total) {
   using namespace ui;
-  screen(title);
+  ui::Screen scr(title);
   card(10, 58, 300, 134, kCard);
   wrap(now, 22, 72, 276, kTitle, kInk, 130);
   text(String(tx->stepOf) + " " + String(done + 1 > total ? total : done + 1) + " " + tx->of + " " + String(total), 22, 132, kBody, kMuted);
@@ -282,7 +164,7 @@ static void statusRows(const Status& s, int y, int maxY) {
 
 static void drawResult(const String& title, bool ok, const String& heading, const Status& st, const String& detail) {
   using namespace ui;
-  screen(title);
+  ui::Screen scr(title);
   card(10, 58, 300, 134, ok ? kOkSoft : kErrSoft, false);
   badge(35, 82, ok);
   wrap(heading, 56, 72, 244, kBold, ok ? kOk : kErr, 116);
@@ -295,20 +177,19 @@ static void drawResult(const String& title, bool ok, const String& heading, cons
 // Three tiles above the buttons with what each one switches, the drive state below.
 static void drawManual(const ManualState& m, bool driving) {
   using namespace ui;
-  screen(tx->manual);
+  ui::Screen scr(tx->manual);
   const char* name[3] = {tx->left, tx->direction, tx->right};
   int val[3] = {m.left, m.forward, m.right};
   for (int i = 0; i < 3; i++) {
     bool on = i == 1 ? val[i] >= 0 : val[i] == 1;
     String v = val[i] < 0 ? String("?") : i == 1 ? String(val[i] ? tx->forward : tx->backward) : String(val[i] ? tx->on : tx->off);
     int x = kBtnX[i] - 47;
-    D.fillRoundRect(x, 58, 94, 62, 10, on && i != 1 ? kOkSoft : kCard);
-    D.drawRoundRect(x, 58, 94, 62, 10, on && i != 1 ? kOk : kLine);
+    box(x, 58, 94, 62, 10, on && i != 1 ? kOkSoft : kCard, on && i != 1 ? kOk : kLine);
     centred(name[i], kBtnX[i], 66, kBody, kMuted);
     centred(v, kBtnX[i], 90, kBold, on && i != 1 ? kOk : kInk);
   }
   if (driving) {
-    D.fillRoundRect(10, 128, 300, 30, 15, kRed);
+    box(10, 128, 300, 30, 15, kRed);
     centred(tx->drivingRelease, kW / 2, 134, kBold, kWhite);
   } else {
     centred(tx->holdToDrive, kW / 2, 134, kBody, kMuted);
@@ -316,8 +197,7 @@ static void drawManual(const ManualState& m, bool driving) {
   // hold labels (white) and short-press labels (red), as on the home screen
   const char* hold[3] = {tx->done, tx->drive, ""};
   for (int i = 0; i < 2; i++) {
-    D.fillRoundRect(kBtnX[i] - 47, 164, 94, 34, 8, kCard);
-    D.drawRoundRect(kBtnX[i] - 47, 164, 94, 34, 8, kMuted);
+    box(kBtnX[i] - 47, 164, 94, 34, 8, kCard, kMuted);
     centred(hold[i], kBtnX[i], 171, kBold, kInk);
   }
   String label[3] = {tx->motorL, tx->direction, tx->motorR};
@@ -328,7 +208,7 @@ static void drawManual(const ManualState& m, bool driving) {
 // ---- PIN entry: left = -, middle = next / OK, right = + (hold middle = cancel) ----
 static void drawPin(const PinEditor& e, const String& why) {
   using namespace ui;
-  screen(tx->pinTitle);
+  ui::Screen scr(tx->pinTitle);
   card(10, 58, 300, 134, kCard);
   wrap(why, 22, 66, 276, kBold, kInk, 90);
   const std::string& d = e.digits();
@@ -340,12 +220,9 @@ static void drawPin(const PinEditor& e, const String& why) {
   for (int i = 0; i <= n; i++) {
     bool cur = i == (int)e.cursor();
     int bw = i < n ? w : okW;
-    D.fillRoundRect(x, 98, bw, 50, 10, cur ? kRedSoft : kCard);
-    D.drawRoundRect(x, 98, bw, 50, 10, cur ? kRed : kLine);
-    if (cur) D.drawRoundRect(x + 1, 99, bw - 2, 48, 9, kRed);
+    box(x, 98, bw, 50, 10, cur ? kRedSoft : kCard, cur ? kRed : kLine, cur ? 2 : 1);
     String c = i < n ? String(d[i]) : String("OK");
-    D.setFont(i < n ? f : kBold);
-    int h = D.fontHeight();
+    int h = fontH(i < n ? f : kBold);
     centred(c, x + bw / 2, 123 - h / 2, i < n ? f : kBold, cur ? kRed : kInk);
     x += bw + gap;
   }
@@ -548,11 +425,11 @@ static void waitAllReleased();
 static void busy(const String& title, const String& what);
 static void drawFinishQuestion() {
   using namespace ui;
-  screen(tx->routeStopped);
+  ui::Screen scr(tx->routeStopped);
   card(10, 58, 300, 134, kCard);
   text(tx->finishRoute, 22, 68, kTitle, kInk);
-  int y = wrap(tx->finishYesHint, 22, 104, 276, kBody, kInk, 150);
-  wrap(tx->finishNoHint, 22, y + 4, 276, kBody, kInk, 186);
+  int y = wrap(tx->finishYesHint, 22, 100, 276, kBody, kInk, 150);
+  wrap(tx->finishNoHint, 22, y + 2, 276, kBody, kInk, 188);
   String label[3] = {tx->yesWord, tx->laterWord, tx->noWord};
   Pill style[3] = {Pill::Primary, Pill::Neutral, Pill::Primary};
   pills(label, style);
@@ -618,13 +495,13 @@ static void waitAllReleased() {
 // ---- lists: left = next, middle = choose, right = back --------------------------------
 static void drawList(const String& title, const std::vector<String>& lines, int sel) {
   using namespace ui;
-  screen(title);
+  ui::Screen scr(title);
   card(10, 58, 300, 134, kCard);
   int first = sel >= 5 ? sel - 4 : 0;   // five rows fit
   int y = 66;
   for (int i = first; i < (int)lines.size() && y < 186; i++) {
     bool cur = i == sel;
-    if (cur) D.fillRoundRect(16, y - 2, 288, 24, 8, kRedSoft);
+    if (cur) box(16, y - 2, 288, 24, 8, kRedSoft);
     text(lines[i], 24, y + 2, cur ? kBold : kBody, cur ? kRed : kInk);
     y += 24;
   }
@@ -649,7 +526,7 @@ static int chooseFrom(const String& title, const std::vector<String>& lines, int
 
 static void busy(const String& title, const String& what) {
   using namespace ui;
-  screen(title);
+  ui::Screen scr(title);
   card(10, 58, 300, 134, kCard);
   wrap(what, 22, 70, 276, kBold, kInk, 180);
 }
@@ -657,16 +534,18 @@ static void busy(const String& title, const String& what) {
 // A message until a button is pressed. tone: 0 plain, 1 good, 2 wrong.
 static void notice(const String& title, const String& what, int tone) {
   using namespace ui;
-  screen(title);
-  card(10, 58, 300, 134, tone == 1 ? kOkSoft : tone == 2 ? kErrSoft : kCard, tone == 0);
-  if (tone == 1) {
-    badge(35, 82, true);
-    wrap(what, 56, 72, 244, kBold, kOk, 180);
-  } else {
-    wrap(what, 22, 70, 276, kBold, tone == 2 ? kErr : kInk, 180);
-  }
+  {
+    ui::Screen scr(title);
+    card(10, 58, 300, 134, tone == 1 ? kOkSoft : tone == 2 ? kErrSoft : kCard, tone == 0);
+    if (tone == 1) {
+      badge(35, 82, true);
+      wrap(what, 56, 72, 244, kBold, kOk, 180);
+    } else {
+      wrap(what, 22, 70, 276, kBold, tone == 2 ? kErr : kInk, 180);
+    }
+    hint(tx->pressAnyButton);
+  }   // shown here
   if (tone) M5.Speaker.tone(tone == 1 ? 2000 : 400, 120);
-  hint(tx->pressAnyButton);
   waitForButton();
 }
 
@@ -695,10 +574,12 @@ static void chooseRobot() {
   prefs.putString("addr", savedAddress.c_str());
   M5.Speaker.tone(2000, 100);
   using namespace ui;
-  screen(tx->robotWord);
-  card(10, 58, 300, 134, kOkSoft, false);
-  badge(35, 82, true);
-  wrap(tx->robotSaved, 56, 72, 244, kBold, kOk, 116);
+  {
+    ui::Screen scr(tx->robotWord);
+    card(10, 58, 300, 134, kOkSoft, false);
+    badge(35, 82, true);
+    wrap(tx->robotSaved, 56, 72, 244, kBold, kOk, 116);
+  }
   delay(1200);
 }
 
@@ -742,40 +623,36 @@ static void tryWifi(const String& ssid, const String& pass) {
 }
 
 // Typing the password: left / right = previous / next slot (held = fast), middle = use it.
-static void drawTyping(const TextEditor& e, const String& ssid, bool full) {
+// The whole screen each time: it is built off-screen, so only what changed looks different.
+static void drawTyping(const TextEditor& e, const String& ssid) {
   using namespace ui;
-  if (full) {
-    screen(tx->wifiRow);
-    String label[3] = {"<", tx->choose, ">"};
-    Pill style[3] = {Pill::Neutral, Pill::Primary, Pill::Neutral};
-    pills(label, style);
-  }
+  ui::Screen scr(tx->wifiRow);
+  String label[3] = {"<", tx->choose, ">"};
+  Pill style[3] = {Pill::Neutral, Pill::Primary, Pill::Neutral};
+  pills(label, style);
   card(10, 58, 300, 134, kCard);
   text(String(tx->passwordFor) + " " + ssid, 22, 64, kBody, kMuted);
   String shown = String(e.text().c_str());
   while (shown.length() > 0 && textW(shown + "_", kBold) > 268) shown = shown.substring(1);   // the end if long
-  D.fillRoundRect(18, 86, 284, 30, 8, kChip);
+  box(18, 86, 284, 30, 8, kChip);
   text(shown + "_", 26, 93, kBold, kInk);
   const int w = 54, gap = 4;
   for (int k = -2; k <= 2; k++) {
     int i = (e.cursor() + k + e.size()) % e.size();
     bool cur = k == 0;
     int x = 160 + k * (w + gap) - w / 2;
-    D.fillRoundRect(x, 124, w, 42, 10, cur ? kRedSoft : kCard);
-    D.drawRoundRect(x, 124, w, 42, 10, cur ? kRed : kLine);
-    if (cur) D.drawRoundRect(x + 1, 125, w - 2, 40, 9, kRed);
+    box(x, 124, w, 42, 10, cur ? kRedSoft : kCard, cur ? kRed : kLine, cur ? 2 : 1);
     std::string l = e.label(i);
     String s = l == " " ? String(tx->spaceWord) : String(l.c_str());
     Font f = l.size() == 1 && l != " " ? kTitle : kBold;
-    D.setFont(f);
-    centred(s, x + w / 2, 145 - D.fontHeight() / 2, f, cur ? kRed : kInk);
+    centred(s, x + w / 2, 145 - fontH(f) / 2, f, cur ? kRed : kInk);
   }
-  text(tx->holdToCancel, 22, 172, kBody, kMuted);
+  text(tx->holdToCancel, 22, 170, kBody, kMuted);
 }
 
 static bool typePassword(const String& ssid, String& out) {
   TextEditor e;
-  drawTyping(e, ssid, true);
+  drawTyping(e, ssid);
   uint32_t middleDown = 0, lastInput = millis(), heldA = 0, heldC = 0, lastRepeat = 0;
   for (;;) {
     M5.update();
@@ -802,7 +679,7 @@ static bool typePassword(const String& ssid, String& out) {
     }
     if (changed) {
       lastInput = now;
-      drawTyping(e, ssid, false);
+      drawTyping(e, ssid);
     }
     delay(10);
   }
@@ -1087,13 +964,15 @@ static bool offerUpdate(bool quiet) {
     notice(tx->updateTitle, tx->notTrusted, 2);
     return true;
   }
-  screen(tx->updateTitle);
-  card(10, 58, 300, 134, kCard);
-  int y = wrap(String(tx->newVersion) + " " + m.version.c_str() + " (" + String((int)m.build) + ")", 22, 70, 276, kBold, kInk, 120);
-  text(String(tx->versionRow) + " " + own, 22, y + 8, kBody, kMuted);
-  String label[3] = {"", tx->install, tx->back};
-  Pill style[3] = {Pill::Neutral, Pill::Primary, Pill::Neutral};
-  pills(label, style);
+  {
+    ui::Screen scr(tx->updateTitle);
+    card(10, 58, 300, 134, kCard);
+    int y = wrap(String(tx->newVersion) + " " + m.version.c_str() + " (" + String((int)m.build) + ")", 22, 70, 276, kBold, kInk, 120);
+    text(String(tx->versionRow) + " " + own, 22, y + 8, kBody, kMuted);
+    String label[3] = {"", tx->install, tx->back};
+    Pill style[3] = {Pill::Neutral, Pill::Primary, Pill::Neutral};
+    pills(label, style);
+  }
   bool go = false;
   uint32_t t0 = millis();
   while (millis() - t0 < 60000) {
@@ -1205,12 +1084,14 @@ static void otaUpdate() {
   ArduinoOTA.onStart([] { busy(tx->updateTitle, tx->updating); });
   ArduinoOTA.onProgress([](unsigned done, unsigned total) { progressBar(22, 162, 276, int(done / 1024), int(total / 1024)); });
   ArduinoOTA.begin();
-  screen(tx->updateTitle);
-  card(10, 58, 300, 134, kCard);
-  int y = wrap(tx->readyForUpdate, 22, 70, 276, kBold, kInk, 120);
-  text(String("scraper-knop.local"), 22, y + 6, kBody, kMuted);
-  text(String(WiFi.localIP().toString().c_str()), 22, y + 30, kBold, kInk);
-  hint(tx->pressToStop);
+  {
+    ui::Screen scr(tx->updateTitle);
+    card(10, 58, 300, 134, kCard);
+    int y = wrap(tx->readyForUpdate, 22, 70, 276, kBold, kInk, 120);
+    text(String("scraper-knop.local"), 22, y + 6, kBody, kMuted);
+    text(String(WiFi.localIP().toString().c_str()), 22, y + 30, kBold, kInk);
+    hint(tx->pressToStop);
+  }
   uint32_t until = millis() + 600000;   // 10 minutes
   while ((int32_t)(millis() - until) < 0) {
     ArduinoOTA.handle();   // an update reboots the M5 when it is done
@@ -1226,7 +1107,7 @@ static void otaUpdate() {
 // ---- settings > wifi: left = network, middle = WPS, right = update (held = from a Mac) ---
 static void drawWifi() {
   using namespace ui;
-  screen(tx->wifiRow);
+  ui::Screen scr(tx->wifiRow);
   card(10, 58, 300, 134, kCard);
   text(tx->networkWord, 22, 70, kBody, kMuted);
   text(wifiSsid.isEmpty() ? String(tx->notSet) : wifiSsid, 110, 70, kBold, kInk);
@@ -1260,7 +1141,7 @@ static void wifiMenu() {
 // ---- settings (right held 1.5 s): left = PIN, middle = robot, right = wifi ---------------
 static void drawSettings(const char* line = nullptr) {
   using namespace ui;
-  screen(tx->settings);
+  ui::Screen scr(tx->settings);
   card(10, 58, 300, 134, kCard);
   text(tx->robotRow, 22, 70, kBody, kMuted);
   text(savedAddress.empty() ? String(tx->automatic) : String(savedAddress.c_str()), 110, 70, kBold, kInk);
@@ -1317,6 +1198,7 @@ static void settingsMenu() {
 void setup() {
   auto cfg = M5.config();
   M5.begin(cfg);
+  ui::begin();   // LVGL: the screens (Ui.h)
   Serial.begin(115200);
   prefs.begin(DRIVER_STORE, false);
   if (prefs.getBytesLength("imgver") == 9) prefs.getBytes("imgver", storedVersion, 9);
@@ -1332,10 +1214,12 @@ void setup() {
   if (!updated.isEmpty()) {   // first start after an update
     prefs.putString("updated", "");
     using namespace ui;
-    screen(tx->updateTitle);
-    card(10, 58, 300, 134, kOkSoft, false);
-    badge(35, 82, true);
-    wrap(String(tx->updatedTo) + " " + updated, 56, 72, 244, kBold, kOk, 180);
+    {
+      ui::Screen scr(tx->updateTitle);
+      card(10, 58, 300, 134, kOkSoft, false);
+      badge(35, 82, true);
+      wrap(String(tx->updatedTo) + " " + updated, 56, 72, 244, kBold, kOk, 180);
+    }
     delay(3000);
   }
   idle();
