@@ -69,21 +69,28 @@ kotlin {
 
 // --- the core as a JNI library for this desktop (Linux .so, macOS .dylib, Windows .dll) ---
 val coreJniOut = layout.buildDirectory.dir("core-jni")
+val coreJniWork = layout.buildDirectory.dir("core-jni-cmake")
+val configureCoreJni by tasks.registering(Exec::class) {
+  val out = coreJniOut.get().asFile.resolve("native").invariantSeparatorsPath
+  inputs.dir(driverSrc)
+  inputs.dir(apiDir)
+  inputs.files(secretsFile)
+  outputs.dir(coreJniWork)
+  doFirst { coreJniWork.get().asFile.run { deleteRecursively(); mkdirs() } } // a fresh CMake cache: the sources may have moved
+  commandLine(
+    "cmake", "-S", apiDir.path, "-B", coreJniWork.get().asFile.path, "-DSCRAPER_DRIVER=$driver", "-DCMAKE_BUILD_TYPE=Release",
+    "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=$out", "-DCMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE=$out",   // the second: a .dll on Windows
+  )
+}
 val buildCoreJni by tasks.registering(Exec::class) {
   description = "Builds the robot driver with the JNI bridge (core/CMakeLists.txt) for this machine."
-  val work = layout.buildDirectory.dir("core-jni-cmake").get().asFile
+  dependsOn(configureCoreJni)
   inputs.dir(driverSrc)
   inputs.dir(apiDir)
   inputs.files(secretsFile)
   outputs.dir(coreJniOut)
-  doFirst { work.deleteRecursively(); work.mkdirs() } // a fresh CMake cache: the sources may have moved
-  workingDir(work)
-  commandLine(
-    "sh", "-c",
-    "cmake -S '$apiDir' -B . -DSCRAPER_DRIVER=$driver -DCMAKE_BUILD_TYPE=Release " +
-      "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY='${coreJniOut.get().asFile.resolve("native")}' >/dev/null && " +
-      "cmake --build . --config Release",
-  )
+  doFirst { coreJniOut.get().asFile.resolve("native").mkdirs() } // Gradle empties a task's output folder before its first run
+  commandLine("cmake", "--build", coreJniWork.get().asFile.path, "--config", "Release")
 }
 kotlin.sourceSets.getByName("jvmMain").resources.srcDir(buildCoreJni.map { coreJniOut.get().asFile })
 

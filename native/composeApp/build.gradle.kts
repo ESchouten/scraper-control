@@ -37,12 +37,19 @@ compose.desktop {
     mainClass = "nl.eschouten.scraper.app.MainKt"
     nativeDistributions {
       packageName = "Scraper Control"
-      // the app icon (from the iOS/Android icon: icons/icon.icns for the Mac, icons/icon.png for Linux)
+      // the app icon (from the iOS/Android icon), per system
       macOS { iconFile.set(project.file("icons/icon.icns")) }
       linux { iconFile.set(project.file("icons/icon.png")) }
+      windows {
+        iconFile.set(project.file("icons/icon.ico"))
+        menu = true            // in the Start menu
+        perUserInstall = true  // no administrator needed
+        upgradeUuid = "1fe694cb-fc77-4315-bb64-e8666b0218d5"   // never changes: a newer installer replaces the older app
+      }
       targetFormats(
         org.jetbrains.compose.desktop.application.dsl.TargetFormat.Dmg,
         org.jetbrains.compose.desktop.application.dsl.TargetFormat.Deb,
+        org.jetbrains.compose.desktop.application.dsl.TargetFormat.Exe,
       )
       packageVersion = rootProject.extra["appVersion"] as String   // 1.6.120 (build.gradle.kts)
     }

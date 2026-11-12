@@ -5,8 +5,7 @@ name: release
 #                                 releases/latest (settings > Wifi > Update, or automatically)
 #   scraper-control-<board>-<v>.bin  the firmware per board (now: m5stack-core = the M5 buttons)
 #   scraper-control-<v>.apk       Android app (install by hand, or keep it updated with Obtainium)
-#   Scraper Control desktop       macOS .dmg, Linux .deb (Windows: later, the core's CMake
-#                                 build is not set up for MSVC yet)
+#   Scraper Control desktop       macOS .dmg, Linux .deb, Windows .exe (installers, not signed)
 # Run it by hand (Actions > release > Run workflow) when a version should go out.
 # The M5s download from github.com/<FW_REPO>/releases/latest, so every release must carry the
 # firmware: that is why the apps are not released separately.
@@ -121,7 +120,7 @@ jobs:
   desktop:
     strategy:
       matrix:
-        os: [macos-latest, ubuntu-latest]
+        os: [macos-latest, ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -139,14 +138,14 @@ jobs:
         shell: bash
         env:
           BUILD_SECRETS: ${{ secrets.BUILD_SECRETS }}
-        run: python3 tools/secrets.py --release
-      - name: Build the installer (.dmg / .deb, with its own Java)
+        run: python tools/secrets.py --release
+      - name: Build the installer (.dmg / .deb / .exe, with its own Java)
         working-directory: native
         shell: bash
         run: |
           ./gradlew :composeApp:packageDistributionForCurrentOS --console=plain
           mkdir -p ../out
-          cp composeApp/build/compose/binaries/main/*/*.{dmg,deb} ../out/ 2>/dev/null || true
+          cp composeApp/build/compose/binaries/main/*/*.{dmg,deb,exe} ../out/ 2>/dev/null || true
           ls ../out/*
       - uses: actions/upload-artifact@v4
         with:
@@ -176,4 +175,4 @@ jobs:
 
           - M5 buttons: they install this version themselves (settings, or automatically once a day / on a new wifi connection).
           - Android: install the .apk, or follow this repository with Obtainium for automatic updates.
-          - Desktop: .dmg (macOS), .deb (Linux). Not signed by Apple: on a Mac, right-click > Open the first time."
+          - Desktop: .dmg (macOS), .deb (Linux), .exe (Windows). Not signed: on a Mac, right-click > Open the first time; on Windows, More info > Run anyway."
