@@ -13,6 +13,7 @@
 
 #include <cstring>
 
+#include "Icons.h"
 #include "lvgl.h"
 
 #ifdef ARDUINO
@@ -26,6 +27,7 @@ LV_FONT_DECLARE(ui_font_body)
 LV_FONT_DECLARE(ui_font_bold)
 LV_FONT_DECLARE(ui_font_title)
 LV_FONT_DECLARE(ui_font_big)
+LV_FONT_DECLARE(ui_font_icon)
 LV_IMAGE_DECLARE(ui_logo);
 }
 
@@ -39,7 +41,9 @@ const Color kOk = 0x1B7F3B, kOkSoft = 0xE3F4E8, kErr = 0xA8200D, kErrSoft = 0xFC
 const Color kNone = 0xFF000000;   // no fill / no border
 
 using Font = const lv_font_t*;
-static const Font kBody = &ui_font_body, kBold = &ui_font_bold, kTitle = &ui_font_title, kBig = &ui_font_big;
+// body, bold and title also hold the icons (Icons.h); kIcon is icons only, large
+static const Font kBody = &ui_font_body, kBold = &ui_font_bold, kTitle = &ui_font_title, kBig = &ui_font_big,
+                  kIcon = &ui_font_icon;
 
 const int kW = 320, kH = 240, kHeaderH = 48, kFooterY = 200;
 const int kBtnX[3] = {56, 160, 264};   // centres above the three physical buttons
@@ -201,7 +205,10 @@ struct Screen {
 // ---- the labels above the buttons ----------------------------------------------------------
 enum class Pill { None, Primary, Neutral };
 
-static void pills(const String (&label)[3], const Pill (&style)[3]) {
+// Labels above the three buttons. Default: small keys at the bottom; the home screen uses
+// taller route keys (y, h, font). A label may start with an icon (Icons.h).
+static void pills(const String (&label)[3], const Pill (&style)[3], int y = kFooterY + 6, int h = 30,
+                  Font font = kBold) {
   Lock l;
   static const lv_style_prop_t props[] = {LV_STYLE_BG_COLOR, LV_STYLE_TRANSLATE_Y, LV_STYLE_PROP_INV};
   static lv_style_transition_dsc_t trans;
@@ -213,15 +220,28 @@ static void pills(const String (&label)[3], const Pill (&style)[3]) {
   for (int i = 0; i < 3; i++) {
     if (style[i] == Pill::None || label[i].isEmpty()) continue;
     bool primary = style[i] == Pill::Primary;
-    lv_obj_t* o = box(kBtnX[i] - 47, kFooterY + 6, 94, 30, 15, primary ? kRed : kCard, primary ? kNone : kLine);
+    lv_obj_t* o = box(kBtnX[i] - 47, y, 94, h, h >= 40 ? 14 : h / 2, primary ? kRed : kCard, primary ? kNone : kLine);
+    if (primary) {   // a little depth, like the app's buttons
+      lv_obj_set_style_bg_grad_color(o, col(0xB00D28), 0);
+      lv_obj_set_style_bg_grad_dir(o, LV_GRAD_DIR_VER, 0);
+      lv_obj_set_style_bg_grad_color(o, col(kRedDeep), LV_STATE_PRESSED);
+    }
     // held down: a shade darker and 2 px lower, as if pressed into the screen
     lv_obj_set_style_bg_color(o, col(primary ? kRedDeep : kChip), LV_STATE_PRESSED);
     lv_obj_set_style_translate_y(o, 2, LV_STATE_PRESSED);
     lv_obj_set_style_transition(o, &trans, 0);
     lv_obj_set_style_transition(o, &trans, LV_STATE_PRESSED);
+    // too wide for the pill: drop the icon, keep the word
+    String l = label[i];
+    if (textW(l, font) > 84 && l.length() > 4) {
+      const uint8_t* b = (const uint8_t*)l.c_str();
+      if (b[0] == 0xEF) l = l.substring(3);
+      else if (b[l.length() - 3] == 0xEF) l = l.substring(0, l.length() - 3);
+      l.trim();
+    }
     lv_obj_t* t = lv_label_create(o);
-    lv_label_set_text(t, label[i].c_str());
-    lv_obj_set_style_text_font(t, kBold, 0);
+    lv_label_set_text(t, l.c_str());
+    lv_obj_set_style_text_font(t, font, 0);
     lv_obj_set_style_text_color(t, col(primary ? kWhite : kInk), 0);
     lv_obj_center(t);
     if (building) buildPill[i] = o;
@@ -236,10 +256,48 @@ static void badge(int cx, int cy, bool ok) {
   Lock l;
   lv_obj_t* o = box(cx - 13, cy - 13, 26, 26, LV_RADIUS_CIRCLE, ok ? kOk : kErr);
   lv_obj_t* t = lv_label_create(o);
-  lv_label_set_text(t, ok ? LV_SYMBOL_OK : "!");
+  lv_label_set_text(t, ok ? ICON_OK : "!");
   lv_obj_set_style_text_font(t, kBold, 0);
   lv_obj_set_style_text_color(t, col(kWhite), 0);
   lv_obj_center(t);
+}
+
+// A large round icon (results, questions): white icon on a coloured disc of size d.
+static void disc(int x, int y, int d, const char* icon, Color fill, Color ink = kWhite) {
+  Lock l;
+  lv_obj_t* o = box(x, y, d, d, LV_RADIUS_CIRCLE, fill);
+  lv_obj_t* t = lv_label_create(o);
+  lv_label_set_text(t, icon);
+  lv_obj_set_style_text_font(t, d >= 40 ? kIcon : kBold, 0);
+  lv_obj_set_style_text_color(t, col(ink), 0);
+  lv_obj_center(t);
+}
+
+// An icon and a text after it, the icon in its own colour.
+static int iconText(const char* icon, const String& s, int x, int y, Font f, Color c, Color ic, int gap = 8) {
+  text(icon, x, y, f, ic);
+  int w = textW(icon, f);
+  int iw = w < 18 ? 18 : w;   // icons differ in width: keep the texts in line
+  text(s, x + iw + gap, y, f, c);
+  return x + iw + gap + textW(s, f);
+}
+
+// A small round dot (schedule on / off).
+static void dot(int cx, int cy, int r, Color c) { box(cx - r, cy - r, 2 * r, 2 * r, LV_RADIUS_CIRCLE, c); }
+
+// A busy indicator that turns (LVGL spinner) in brand red on a light ring.
+static void spinner(int x, int y, int d) {
+  Lock l;
+  lv_obj_t* o = lv_spinner_create(parent());
+  lv_spinner_set_anim_params(o, 1000, 240);
+  lv_obj_set_pos(o, x, y);
+  lv_obj_set_size(o, d, d);
+  lv_obj_remove_flag(o, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_set_style_arc_width(o, 5, LV_PART_MAIN);
+  lv_obj_set_style_arc_color(o, col(kChip), LV_PART_MAIN);
+  lv_obj_set_style_arc_width(o, 5, LV_PART_INDICATOR);
+  lv_obj_set_style_arc_color(o, col(kRed), LV_PART_INDICATOR);
+  lv_obj_set_style_arc_rounded(o, true, LV_PART_INDICATOR);
 }
 
 // A progress bar. On a screen being built with the same title and steps as the shown one, it

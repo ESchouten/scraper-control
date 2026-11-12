@@ -40,11 +40,13 @@ struct Texts {
       *routeCancelled, *questionLeftOpen;
   // settings: looking for known wifi at once, for an update (Erik 2026-11-11)
   const char *settingsWifiLooking, *settingsWifiNone, *settingsUpToDate;
+  // home screen: the robot as last seen (printf formats: %d)
+  const char *homeReady, *homeHint, *tapHint, *justNow, *minAgo, *hourAgo;
 };
 
 static const Texts kNl = {
     "nl",
-    "Kort: route starten / stoppen", "1,5 s vasthouden", "Tijdpad", "Handbed.", "Instellen", "Route",
+    "Kort: route starten / stoppen", "Houd 1,5 s", "Tijdpad", "Handbed.", "Instellen", "Route",
     "Verbinden", "Pincode controleren", "Wachten op het paneel", "Status lezen", "Tijdpad omzetten",
     "Tijdpad tijdelijk uitzetten", "Routemenu openen", "Afronden", "Veiligheidsvraag: Ja", "Route kiezen",
     "Start indrukken", "Vraag over het tijdpad beantwoorden", "Stap", "van", "Even geduld...",
@@ -72,6 +74,8 @@ static const Texts kNl = {
     "Ja", "Nee", "Later", "Route gaat verder", "Route afgebroken",
     "De vraag staat nog op de robot. Beantwoord hem daar, of druk weer op een routeknop.",
     "Wifi zoeken voor een update...", "Geen bekende wifi in de buurt.", "Nieuwste versie, geen update.",
+    "Klaar", "Tik op een route om te starten", "Tik: start / stop", "zojuist",
+    "%d min geleden", "%d uur geleden",
 };
 
 static const Texts kEn = {
@@ -104,6 +108,8 @@ static const Texts kEn = {
     "Yes", "No", "Later", "Route continues", "Route cancelled",
     "The question is still on the robot. Answer it there, or press a route button again.",
     "Looking for wifi for an update...", "No known wifi nearby.", "Latest version, no update.",
+    "Ready", "Tap a route to start it", "Tap: start / stop", "just now",
+    "%d min ago", "%d h ago",
 };
 
 // "nl" -> Dutch, anything else -> English.

@@ -41,7 +41,12 @@ static void shot(const char* name) {
 // Every screen once per language (nl-1-start, en-1-start, ...).
 static void all() {
   String rb = String(tx->route) + " B";
+  haveSeen = false;
   idle(); shot("1-start");
+  seen = Status(); seen.planning = 1; seen.nextRide = "21:00"; seen.clock = "08:00:00"; seen.batteryMv = 25400;
+  seenAt = now; haveSeen = true; now += 12 * 60000;
+  idle(); shot("1b-start-gezien");
+  haveSeen = false;
   drawProgress(rb, nextStep(Kind::Route, int(Step::ScreenReady), true), 3, 8); shot("2-bezig");
   Status st;
   st.planning = 1; st.nextRide = "21:00"; st.batteryMv = 25400;

@@ -79,35 +79,108 @@ static uint32_t owedAt = 0;
 static const uint32_t kOwedForMs = 6UL * 3600UL * 1000UL;
 // Screen: dims after a minute without a press, never off (Erik 2026-11-11), so a press always
 // acts at once (a stop too). The backlight is far from linear: 64 still looked full, so dim low.
+// The robot as the M5 last saw it (RAM only): the home screen shows it, with its age.
+static Status seen;
+static uint32_t seenAt = 0;
+static bool haveSeen = false;
+
 static const uint8_t kBright = 160, kDim = 20;
 static uint32_t lastActive = 0;
 static int dimLevel = 0;   // 0 bright, 1 dim
 
 
 // ---- screens -----------------------------------------------------------------------
+// "HH:MM..." -> minutes since midnight, -1 if not a time.
+static int minutesOf(const std::string& t) {
+  if (t.size() < 5 || t[2] != ':' || !isdigit(t[0]) || !isdigit(t[1]) || !isdigit(t[3]) || !isdigit(t[4])) return -1;
+  return ((t[0] - '0') * 10 + t[1] - '0') * 60 + (t[3] - '0') * 10 + t[4] - '0';
+}
+
+// The next ride as last seen, or "" once it has passed (the robot's clock, run on with millis).
+static String nextRideNow() {
+  int next = minutesOf(seen.nextRide), clock = minutesOf(seen.clock);
+  if (next < 0) return "";
+  if (clock < 0) return seen.nextRide.c_str();
+  int waited = (next - clock + 1440) % 1440;   // minutes from the reading to the ride
+  int since = int((millis() - seenAt) / 60000);
+  return since < waited ? String(seen.nextRide.substr(0, 5).c_str()) : String();
+}
+
+static String ago(uint32_t ms) {
+  char b[32];
+  uint32_t min = ms / 60000;
+  if (min < 1) return tx->justNow;
+  if (min < 60) snprintf(b, sizeof b, tx->minAgo, int(min));
+  else snprintf(b, sizeof b, tx->hourAgo, int(min / 60));
+  return b;
+}
+
+// A settings row: icon in a soft square, the label small above the value. Rows 0..2.
+static void settingRow(int i, const char* icon, const String& label, const String& value) {
+  using namespace ui;
+  int y = 64 + i * 42;
+  if (i) box(22, y - 5, 276, 1, 0, kLine);
+  box(22, y + 2, 30, 30, 9, kRedSoft);
+  centred(icon, 37, y + 8, kBold, kRed);
+  text(label, 62, y, kBody, kMuted);
+  String v = value;
+  while (v.length() > 1 && textW(v, kBold) > 232) v = v.substring(0, v.length() - 1);
+  text(v, 62, y + 17, kBold, kInk);
+}
+
+static String volts(int mv) { return String(mv / 1000) + (tx == &kNl ? "," : ".") + String(mv % 1000 / 100) + " V"; }
+
+// Home: the robot as last seen, the three hold actions (white) and the three routes (red).
 static void idle() {
   using namespace ui;
   ui::Screen scr("Scraper Control");
-  // legend: the two kinds of labels above the buttons
-  card(10, 58, 300, 80, kCard);
-  box(22, 72, 26, 14, 7, kRed);
-  text(tx->shortPress, 58, 68, kBold, kInk);
-  box(22, 106, 26, 14, 4, kCard, kMuted);
-  text(tx->holdPress, 58, 102, kBold, kInk);
-
-  const char* hold[3] = {tx->holdPlanning, tx->holdManual, tx->holdPin};
-  for (int i = 0; i < 3; i++) {
-    box(kBtnX[i] - 47, 152, 94, 34, 8, kCard, kMuted);
-    centred(hold[i], kBtnX[i], 159, kBold, kInk);
+  card(10, 56, 300, 54, kCard);
+  if (haveSeen) {
+    bool on = seen.planning == 1;
+    dot(27, 72, 5, on ? kOk : kMuted);
+    text(String(tx->planning) + " " + (on ? tx->planningOnWord : tx->planningOffWord), 40, 61, kBold, kInk);
+    if (seen.batteryMv > 0) {
+      String v = volts(seen.batteryMv);
+      int w = textW(v, kBody) + textW(ICON_BATTERY, kBody) + 6;
+      iconText(ICON_BATTERY, v, 298 - w, 62, kBody, kMuted, kMuted, 6);
+    }
+    String next = nextRideNow();
+    String a = ago(millis() - seenAt);
+    int aw = textW(a, kBody);
+    if (next.length()) {   // drop the word "next run" when the time and the age would touch
+      String n = String(tx->nextRide) + " " + next;
+      if (20 + textW(ICON_CLOCK, kBody) + 4 + textW(n, kBody) > 298 - aw - 12) n = next;
+      iconText(ICON_CLOCK, n, 20, 84, kBody, kMuted, kMuted, 4);
+    }
+    text(a, 298 - aw, 84, kBody, kMuted);
+  } else {
+    disc(20, 64, 38, ICON_ROBOT, kRedSoft, kRed);
+    text(tx->homeReady, 68, 60, kBold, kInk);
+    wrap(tx->homeHint, 68, 80, 232, kBody, kMuted, 108);
   }
+  // hold 1.5 s: icon over the word, in white keys
+  const char* hold[3] = {tx->holdPlanning, tx->holdManual, tx->holdPin};
+  const char* icon[3] = {ICON_CALENDAR, ICON_HAND, ICON_GEAR};
+  for (int i = 0; i < 3; i++) {
+    box(kBtnX[i] - 47, 118, 94, 46, 12, kCard, kLine);
+    centred(icon[i], kBtnX[i], 122, kBold, kRed);
+    centred(hold[i], kBtnX[i], 141, kBold, kInk);
+  }
+  String gap = "      ";
+  String legend;
+  do {   // as much air between the two as fits
+    legend = String(ICON_UP) + " " + tx->holdPress + gap + ICON_DOWN + " " + tx->tapHint;
+    gap = gap.substring(1);
+  } while (gap.length() > 1 && textW(legend, kBody) > 300);
+  centred(legend, kW / 2, 169, kBody, kMuted);
   const char r[3] = {ROUTE_BTN_A, ROUTE_BTN_B, ROUTE_BTN_C};
   String label[3];
   Pill style[3];
   for (int i = 0; i < 3; i++) {
-    label[i] = r[i] == '-' ? String() : String(tx->route) + " " + r[i];
+    label[i] = r[i] == '-' ? String() : String(ICON_PLAY) + "  " + r[i];
     style[i] = r[i] == '-' ? Pill::None : Pill::Primary;
   }
-  pills(label, style);
+  pills(label, style, 192, 42, kTitle);
 }
 
 // What a command is doing, with a progress bar (same steps and words as the app).
@@ -138,10 +211,11 @@ static int expectedSteps(Kind job, bool planningOn) {
 static void drawProgress(const String& title, const String& now, int done, int total) {
   using namespace ui;
   ui::Screen scr(title);
-  card(10, 58, 300, 134, kCard);
-  wrap(now, 22, 72, 276, kTitle, kInk, 130);
-  text(String(tx->stepOf) + " " + String(done + 1 > total ? total : done + 1) + " " + tx->of + " " + String(total), 22, 132, kBody, kMuted);
-  progressBar(22, 162, 276, done, total);
+  card(10, 56, 300, 136, kCard);
+  spinner(24, 70, 42);
+  int y = wrap(now, 80, 68, 220, kTitle, kInk, 126);
+  text(String(tx->stepOf) + " " + String(done + 1 > total ? total : done + 1) + " " + tx->of + " " + String(total), 80, y + 2, kBody, kMuted);
+  progressBar(24, 164, 272, done, total);
   hint(tx->pleaseWait);
 }
 
@@ -149,27 +223,28 @@ static void drawProgress(const String& title, const String& now, int done, int t
 // next ride are not on it).
 static void statusRows(const Status& s, int y, int maxY) {
   using namespace ui;
-  auto row = [&](const char* label, const String& value) {
-    if (y + 22 > maxY) return;
-    text(label, 22, y, kBody, kMuted);
-    text(value, 138, y, kBold, kInk);
-    y += 24;
+  auto row = [&](const char* icon, const char* label, const String& value) {
+    if (y + 20 > maxY) return;
+    iconText(icon, label, 24, y, kBody, kMuted, kMuted, 6);
+    text(value, 160, y, kBold, kInk);
+    y += 22;
   };
-  if (s.planning == 1 || s.planning == 0) row(tx->planning, s.planning == 1 ? tx->on : tx->off);
-  if (!s.nextRide.empty()) row(tx->nextRide, s.nextRide.c_str());
-  if (!s.route.empty()) row(tx->routeRow, s.route.c_str());
-  if (!s.action.empty()) row(tx->action, s.action.c_str());
-  if (s.batteryMv > 0) row(tx->robotBattery, String(s.batteryMv / 1000) + (tx == &kNl ? "," : ".") + String(s.batteryMv % 1000 / 100) + " V");
+  if (s.planning == 1 || s.planning == 0) row(ICON_CALENDAR, tx->planning, s.planning == 1 ? tx->on : tx->off);
+  if (!s.nextRide.empty()) row(ICON_CLOCK, tx->nextRide, s.nextRide.c_str());
+  if (!s.route.empty()) row(ICON_ROUTE, tx->routeRow, s.route.c_str());
+  if (!s.action.empty()) row(ICON_PLAY, tx->action, s.action.c_str());
+  if (s.batteryMv > 0) row(ICON_BATTERY, tx->robotBattery, volts(s.batteryMv));
 }
 
 static void drawResult(const String& title, bool ok, const String& heading, const Status& st, const String& detail) {
   using namespace ui;
   ui::Screen scr(title);
-  card(10, 58, 300, 134, ok ? kOkSoft : kErrSoft, false);
-  badge(35, 82, ok);
-  wrap(heading, 56, 72, 244, kBold, ok ? kOk : kErr, 116);
-  if (ok) statusRows(st, 106, 190);
-  else wrap(detail, 22, 106, 276, kBody, kInk, 190);
+  card(10, 56, 300, 136, ok ? kOkSoft : kErrSoft, false);
+  disc(22, 66, 40, ok ? ICON_OK : ICON_WARNING, ok ? kOk : kErr);
+  int y = wrap(heading, 74, 66, 226, kTitle, ok ? kOk : kErr, 116);
+  y = y < 112 ? 112 : y + 4;
+  if (ok) statusRows(st, y, 190);
+  else wrap(detail, 24, y, 272, kBody, kInk, 190);
   hint(tx->pressAnyButton);
 }
 
@@ -184,21 +259,25 @@ static void drawManual(const ManualState& m, bool driving) {
     bool on = i == 1 ? val[i] >= 0 : val[i] == 1;
     String v = val[i] < 0 ? String("?") : i == 1 ? String(val[i] ? tx->forward : tx->backward) : String(val[i] ? tx->on : tx->off);
     int x = kBtnX[i] - 47;
-    box(x, 58, 94, 62, 10, on && i != 1 ? kOkSoft : kCard, on && i != 1 ? kOk : kLine);
-    centred(name[i], kBtnX[i], 66, kBody, kMuted);
-    centred(v, kBtnX[i], 90, kBold, on && i != 1 ? kOk : kInk);
+    bool green = on && i != 1;
+    box(x, 56, 94, 70, 12, green ? kOkSoft : kCard, green ? kOk : kLine, green ? 2 : 1);
+    centred(name[i], kBtnX[i], 62, kBody, kMuted);
+    const char* ic = i == 1 ? (val[i] < 0 ? "" : val[i] ? ICON_UP : ICON_DOWN) : (on ? ICON_BOLT : ICON_POWER);
+    if (*ic) centred(ic, kBtnX[i], 82, kBold, green ? kOk : i == 1 ? kRed : kMuted);
+    centred(v, kBtnX[i], 101, kBold, green ? kOk : kInk);
   }
   if (driving) {
-    box(10, 128, 300, 30, 15, kRed);
-    centred(tx->drivingRelease, kW / 2, 134, kBold, kWhite);
+    box(10, 132, 300, 30, 15, kRed);
+    centred(String(ICON_PLAY) + "  " + tx->drivingRelease, kW / 2, 138, kBold, kWhite);
   } else {
-    centred(tx->holdToDrive, kW / 2, 134, kBody, kMuted);
+    centred(tx->holdToDrive, kW / 2, 138, kBody, kMuted);
   }
   // hold labels (white) and short-press labels (red), as on the home screen
   const char* hold[3] = {tx->done, tx->drive, ""};
+  const char* holdIcon[3] = {ICON_OK, ICON_PLAY, ""};
   for (int i = 0; i < 2; i++) {
-    box(kBtnX[i] - 47, 164, 94, 34, 8, kCard, kMuted);
-    centred(hold[i], kBtnX[i], 171, kBold, kInk);
+    box(kBtnX[i] - 47, 168, 94, 30, 12, kCard, kLine);
+    centred(String(holdIcon[i]) + " " + hold[i], kBtnX[i], 173, kBold, kInk);
   }
   String label[3] = {tx->motorL, tx->direction, tx->motorR};
   Pill style[3] = {Pill::Primary, Pill::Primary, Pill::Primary};
@@ -209,8 +288,8 @@ static void drawManual(const ManualState& m, bool driving) {
 static void drawPin(const PinEditor& e, const String& why) {
   using namespace ui;
   ui::Screen scr(tx->pinTitle);
-  card(10, 58, 300, 134, kCard);
-  wrap(why, 22, 66, 276, kBold, kInk, 90);
+  card(10, 56, 300, 136, kCard);
+  iconText(ICON_KEY, why, 22, 66, kBold, kInk, kRed, 6);
   const std::string& d = e.digits();
   int n = (int)d.size(), okW = 52, gap = 6;
   int w = (276 - okW - gap * n) / (n > 0 ? n : 1);
@@ -220,7 +299,7 @@ static void drawPin(const PinEditor& e, const String& why) {
   for (int i = 0; i <= n; i++) {
     bool cur = i == (int)e.cursor();
     int bw = i < n ? w : okW;
-    box(x, 98, bw, 50, 10, cur ? kRedSoft : kCard, cur ? kRed : kLine, cur ? 2 : 1);
+    box(x, 98, bw, 50, 12, cur ? kRedSoft : kBg, cur ? kRed : kLine, cur ? 2 : 1);
     String c = i < n ? String(d[i]) : String("OK");
     int h = fontH(i < n ? f : kBold);
     centred(c, x + bw / 2, 123 - h / 2, i < n ? f : kBold, cur ? kRed : kInk);
@@ -228,7 +307,8 @@ static void drawPin(const PinEditor& e, const String& why) {
   }
   text(tx->holdToCancel, 22, 162, kBody, kMuted);
   bool ok = e.onOk();
-  String label[3] = {ok ? tx->digitMinus : "-", ok ? "OK" : tx->next, ok ? tx->digitPlus : "+"};
+  String label[3] = {ok ? String(tx->digitMinus) : String(ICON_MINUS), ok ? String(ICON_OK) + " OK" : String(tx->next) + " " + ICON_NEXT,
+                     ok ? String(tx->digitPlus) : String(ICON_PLUS)};
   Pill style[3] = {Pill::Neutral, Pill::Primary, Pill::Neutral};
   pills(label, style);
 }
@@ -306,6 +386,11 @@ static Result runOnce(const String& title, Kind kind, const Job& job, Status& st
   if (r == Result::Ok || r == Result::Unexpected) robot.finish();   // planning as found
   st = robot.status();
   robot.disconnect();
+  if (st.planning == 0 || st.planning == 1) {
+    seen = st;
+    seenAt = millis();
+    haveSeen = true;
+  }
 
   if (robot.imageVersionChanged()) prefs.putBytes("imgver", storedVersion, 9);
   if (r != Result::ConnectFailed && link.address() != savedAddress) {
@@ -426,11 +511,12 @@ static void busy(const String& title, const String& what);
 static void drawFinishQuestion() {
   using namespace ui;
   ui::Screen scr(tx->routeStopped);
-  card(10, 58, 300, 134, kCard);
-  text(tx->finishRoute, 22, 68, kTitle, kInk);
-  int y = wrap(tx->finishYesHint, 22, 100, 276, kBody, kInk, 150);
+  card(10, 56, 300, 136, kCard);
+  disc(22, 64, 36, ICON_PAUSE, kRedSoft, kRed);
+  text(tx->finishRoute, 70, 70, kTitle, kInk);
+  int y = wrap(tx->finishYesHint, 22, 106, 276, kBody, kInk, 150);
   wrap(tx->finishNoHint, 22, y + 2, 276, kBody, kInk, 188);
-  String label[3] = {tx->yesWord, tx->laterWord, tx->noWord};
+  String label[3] = {String(ICON_OK) + " " + tx->yesWord, String(ICON_PAUSE) + " " + tx->laterWord, String(ICON_CLOSE) + " " + tx->noWord};
   Pill style[3] = {Pill::Primary, Pill::Neutral, Pill::Primary};
   pills(label, style);
 }
@@ -496,16 +582,17 @@ static void waitAllReleased() {
 static void drawList(const String& title, const std::vector<String>& lines, int sel) {
   using namespace ui;
   ui::Screen scr(title);
-  card(10, 58, 300, 134, kCard);
+  card(10, 56, 300, 136, kCard);
   int first = sel >= 5 ? sel - 4 : 0;   // five rows fit
-  int y = 66;
+  int y = 62;
   for (int i = first; i < (int)lines.size() && y < 186; i++) {
     bool cur = i == sel;
-    if (cur) box(16, y - 2, 288, 24, 8, kRedSoft);
-    text(lines[i], 24, y + 2, cur ? kBold : kBody, cur ? kRed : kInk);
-    y += 24;
+    if (cur) box(16, y - 1, 288, 25, 8, kRedSoft);
+    text(lines[i], 26, y + 2, cur ? kBold : kBody, cur ? kRed : kInk);
+    if (cur) text(ICON_NEXT, 286, y + 3, kBold, kRed);
+    y += 25;
   }
-  String label[3] = {tx->nextWord, tx->choose, tx->back};
+  String label[3] = {String(ICON_DOWN) + " " + tx->nextWord, String(ICON_OK) + " " + tx->choose, String(ICON_PREV) + " " + tx->back};
   Pill style[3] = {Pill::Neutral, Pill::Primary, Pill::Neutral};
   pills(label, style);
 }
@@ -527,8 +614,9 @@ static int chooseFrom(const String& title, const std::vector<String>& lines, int
 static void busy(const String& title, const String& what) {
   using namespace ui;
   ui::Screen scr(title);
-  card(10, 58, 300, 134, kCard);
-  wrap(what, 22, 70, 276, kBold, kInk, 180);
+  card(10, 56, 300, 136, kCard);
+  spinner(24, 70, 42);
+  wrap(what, 80, 78, 220, kBold, kInk, 186);
 }
 
 // A message until a button is pressed. tone: 0 plain, 1 good, 2 wrong.
@@ -536,12 +624,12 @@ static void notice(const String& title, const String& what, int tone) {
   using namespace ui;
   {
     ui::Screen scr(title);
-    card(10, 58, 300, 134, tone == 1 ? kOkSoft : tone == 2 ? kErrSoft : kCard, tone == 0);
-    if (tone == 1) {
-      badge(35, 82, true);
-      wrap(what, 56, 72, 244, kBold, kOk, 180);
+    card(10, 56, 300, 136, tone == 1 ? kOkSoft : tone == 2 ? kErrSoft : kCard, tone == 0);
+    if (tone) {
+      disc(22, 66, 40, tone == 1 ? ICON_OK : ICON_WARNING, tone == 1 ? kOk : kErr);
+      wrap(what, 74, 70, 226, kBold, tone == 1 ? kOk : kErr, 186);
     } else {
-      wrap(what, 22, 70, 276, kBold, tone == 2 ? kErr : kInk, 180);
+      wrap(what, 22, 70, 276, kBold, kInk, 186);
     }
     hint(tx->pressAnyButton);
   }   // shown here
@@ -576,9 +664,9 @@ static void chooseRobot() {
   using namespace ui;
   {
     ui::Screen scr(tx->robotWord);
-    card(10, 58, 300, 134, kOkSoft, false);
-    badge(35, 82, true);
-    wrap(tx->robotSaved, 56, 72, 244, kBold, kOk, 116);
+    card(10, 56, 300, 136, kOkSoft, false);
+    disc(22, 66, 40, ICON_OK, kOk);
+    wrap(tx->robotSaved, 74, 76, 226, kTitle, kOk, 186);
   }
   delay(1200);
 }
@@ -627,11 +715,11 @@ static void tryWifi(const String& ssid, const String& pass) {
 static void drawTyping(const TextEditor& e, const String& ssid) {
   using namespace ui;
   ui::Screen scr(tx->wifiRow);
-  String label[3] = {"<", tx->choose, ">"};
+  String label[3] = {ICON_PREV, String(ICON_OK) + " " + tx->choose, ICON_NEXT};
   Pill style[3] = {Pill::Neutral, Pill::Primary, Pill::Neutral};
   pills(label, style);
-  card(10, 58, 300, 134, kCard);
-  text(String(tx->passwordFor) + " " + ssid, 22, 64, kBody, kMuted);
+  card(10, 56, 300, 136, kCard);
+  iconText(ICON_WIFI, String(tx->passwordFor) + " " + ssid, 22, 63, kBody, kMuted, kRed, 6);
   String shown = String(e.text().c_str());
   while (shown.length() > 0 && textW(shown + "_", kBold) > 268) shown = shown.substring(1);   // the end if long
   box(18, 86, 284, 30, 8, kChip);
@@ -641,7 +729,7 @@ static void drawTyping(const TextEditor& e, const String& ssid) {
     int i = (e.cursor() + k + e.size()) % e.size();
     bool cur = k == 0;
     int x = 160 + k * (w + gap) - w / 2;
-    box(x, 124, w, 42, 10, cur ? kRedSoft : kCard, cur ? kRed : kLine, cur ? 2 : 1);
+    box(x, 124, w, 42, 12, cur ? kRedSoft : kBg, cur ? kRed : kLine, cur ? 2 : 1);
     std::string l = e.label(i);
     String s = l == " " ? String(tx->spaceWord) : String(l.c_str());
     Font f = l.size() == 1 && l != " " ? kTitle : kBold;
@@ -966,10 +1054,11 @@ static bool offerUpdate(bool quiet) {
   }
   {
     ui::Screen scr(tx->updateTitle);
-    card(10, 58, 300, 134, kCard);
-    int y = wrap(String(tx->newVersion) + " " + m.version.c_str() + " (" + String((int)m.build) + ")", 22, 70, 276, kBold, kInk, 120);
-    text(String(tx->versionRow) + " " + own, 22, y + 8, kBody, kMuted);
-    String label[3] = {"", tx->install, tx->back};
+    card(10, 56, 300, 136, kCard);
+    disc(22, 66, 40, ICON_DOWNLOAD, kRedSoft, kRed);
+    int y = wrap(String(tx->newVersion) + " " + m.version.c_str() + " (" + String((int)m.build) + ")", 74, 70, 226, kTitle, kInk, 140);
+    text(String(tx->versionRow) + " " + own, 74, y + 4, kBody, kMuted);
+    String label[3] = {"", String(ICON_DOWNLOAD) + " " + tx->install, String(ICON_PREV) + " " + tx->back};
     Pill style[3] = {Pill::Neutral, Pill::Primary, Pill::Neutral};
     pills(label, style);
   }
@@ -1086,10 +1175,11 @@ static void otaUpdate() {
   ArduinoOTA.begin();
   {
     ui::Screen scr(tx->updateTitle);
-    card(10, 58, 300, 134, kCard);
-    int y = wrap(tx->readyForUpdate, 22, 70, 276, kBold, kInk, 120);
-    text(String("scraper-knop.local"), 22, y + 6, kBody, kMuted);
-    text(String(WiFi.localIP().toString().c_str()), 22, y + 30, kBold, kInk);
+    card(10, 56, 300, 136, kCard);
+    disc(22, 66, 40, ICON_WIFI, kRedSoft, kRed);
+    int y = wrap(tx->readyForUpdate, 74, 70, 226, kBold, kInk, 130);
+    text(String("scraper-knop.local"), 74, y + 6, kBody, kMuted);
+    text(String(WiFi.localIP().toString().c_str()), 74, y + 28, kBold, kInk);
     hint(tx->pressToStop);
   }
   uint32_t until = millis() + 600000;   // 10 minutes
@@ -1108,12 +1198,10 @@ static void otaUpdate() {
 static void drawWifi() {
   using namespace ui;
   ui::Screen scr(tx->wifiRow);
-  card(10, 58, 300, 134, kCard);
-  text(tx->networkWord, 22, 70, kBody, kMuted);
-  text(wifiSsid.isEmpty() ? String(tx->notSet) : wifiSsid, 110, 70, kBold, kInk);
-  text(tx->versionRow, 22, 96, kBody, kMuted);
-  text(String(FW_VERSION) + " (" + String(FW_BUILD) + ")", 110, 96, kBold, kInk);
-  String label[3] = {tx->networkWord, tx->wpsWord, tx->updateWord};
+  card(10, 56, 300, 136, kCard);
+  settingRow(0, ICON_WIFI, tx->networkWord, wifiSsid.isEmpty() ? String(tx->notSet) : wifiSsid);
+  settingRow(1, ICON_DOWNLOAD, tx->versionRow, String(FW_VERSION) + " (" + String(FW_BUILD) + ")");
+  String label[3] = {String(ICON_SEARCH) + " " + tx->networkWord, tx->wpsWord, String(ICON_DOWNLOAD) + " " + tx->updateWord};
   Pill style[3] = {Pill::Neutral, Pill::Neutral, Pill::Neutral};
   pills(label, style);
 }
@@ -1142,15 +1230,13 @@ static void wifiMenu() {
 static void drawSettings(const char* line = nullptr) {
   using namespace ui;
   ui::Screen scr(tx->settings);
-  card(10, 58, 300, 134, kCard);
-  text(tx->robotRow, 22, 70, kBody, kMuted);
-  text(savedAddress.empty() ? String(tx->automatic) : String(savedAddress.c_str()), 110, 70, kBold, kInk);
-  text(tx->wifiRow, 22, 96, kBody, kMuted);
-  text(wifiSsid.isEmpty() ? String(tx->notSet) : wifiSsid, 110, 96, kBold, kInk);
-  text(tx->versionRow, 22, 122, kBody, kMuted);
-  text(String(FW_VERSION) + " (" + String(FW_BUILD) + ")", 110, 122, kBold, kInk);
-  if (line) text(line, 22, 158, kBody, kMuted);
-  String label[3] = {tx->pinTitle, tx->robotWord, tx->wifiRow};
+  card(10, 56, 300, 136, kCard);
+  settingRow(0, ICON_ROBOT, tx->robotRow, savedAddress.empty() ? String(tx->automatic) : String(savedAddress.c_str()));
+  settingRow(1, ICON_WIFI, tx->wifiRow, wifiSsid.isEmpty() ? String(tx->notSet) : wifiSsid);
+  String version = String(FW_VERSION) + " (" + String(FW_BUILD) + ")";
+  if (line) settingRow(2, ICON_SYNC, String(tx->versionRow) + " " + version, line);   // looking for an update
+  else settingRow(2, ICON_DOWNLOAD, tx->versionRow, version);
+  String label[3] = {String(ICON_KEY) + " " + tx->pinTitle, String(ICON_ROBOT) + " " + tx->robotWord, String(ICON_WIFI) + " " + tx->wifiRow};
   Pill style[3] = {Pill::Neutral, Pill::Neutral, Pill::Neutral};
   pills(label, style);
 }
@@ -1216,9 +1302,9 @@ void setup() {
     using namespace ui;
     {
       ui::Screen scr(tx->updateTitle);
-      card(10, 58, 300, 134, kOkSoft, false);
-      badge(35, 82, true);
-      wrap(String(tx->updatedTo) + " " + updated, 56, 72, 244, kBold, kOk, 180);
+      card(10, 56, 300, 136, kOkSoft, false);
+      disc(22, 66, 40, ICON_OK, kOk);
+      wrap(String(tx->updatedTo) + " " + updated, 74, 70, 226, kTitle, kOk, 186);
     }
     delay(3000);
   }

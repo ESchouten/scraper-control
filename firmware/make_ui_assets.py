@@ -7,8 +7,9 @@ change a font, a size or the logo:
     NODE_MODULES=<that folder>/node_modules python3 firmware/make_ui_assets.py
 
 Fonts: Inter (SIL Open Font License 1.1, rsms/inter), ASCII only (the texts in Texts.h
-are ASCII), plus three FontAwesome Free symbols (SIL OFL 1.1) that LVGL ships: tick,
-play and warning. 4 bits per pixel (anti-aliased). The logo is drawn here with PIL.
+are ASCII), plus the FontAwesome Free icons (SIL OFL 1.1, as LVGL ships them) listed in
+ICONS; src/Icons.h names them for the code. 4 bits per pixel (anti-aliased). The logo is
+drawn here with PIL.
 """
 import glob
 import os
@@ -21,14 +22,24 @@ FW = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(FW, "src", "ui")
 NM = os.environ.get("NODE_MODULES", "node_modules")
 INTER = os.path.join(NM, "@fontsource", "inter", "files", "inter-latin-{}-normal.woff")
-SYMBOLS = "0xF00C,0xF04B,0xF071"   # LV_SYMBOL_OK, LV_SYMBOL_PLAY, LV_SYMBOL_WARNING
+# The icons the screens use: name -> FontAwesome 5 code point. src/Icons.h is written from it.
+ICONS = {
+    "OK": 0xF00C, "PLAY": 0xF04B, "WARNING": 0xF071, "CALENDAR": 0xF073, "HAND": 0xF256,
+    "GEAR": 0xF013, "BATTERY": 0xF240, "CLOCK": 0xF017, "WIFI": 0xF1EB, "ROBOT": 0xF544,
+    "STOP": 0xF04D, "PAUSE": 0xF04C, "CLOSE": 0xF00D, "UP": 0xF062, "DOWN": 0xF063,
+    "LEFT": 0xF060, "RIGHT": 0xF061, "PREV": 0xF053, "NEXT": 0xF054, "PLUS": 0xF067,
+    "MINUS": 0xF068, "SYNC": 0xF021, "DOWNLOAD": 0xF019, "KEY": 0xF084, "SEARCH": 0xF002,
+    "BOLT": 0xF0E7, "ROUTE": 0xF4D7, "UNDO": 0xF0E2, "POWER": 0xF011,
+}
+SYMBOLS = ",".join("0x%X" % c for c in ICONS.values())
 
-# name: (weight, px, symbols)
+# name: (weight, px, icons); weight None = icons only
 FONTS = {
-    "ui_font_body": (400, 16, False),
+    "ui_font_body": (400, 16, True),
     "ui_font_bold": (600, 16, True),
-    "ui_font_title": (700, 22, False),
+    "ui_font_title": (700, 22, True),
     "ui_font_big": (700, 32, False),
+    "ui_font_icon": (None, 30, True),
 }
 
 
@@ -46,8 +57,9 @@ def awesome():
 def fonts():
     conv = os.path.join(NM, ".bin", "lv_font_conv")
     for name, (weight, px, symbols) in FONTS.items():
-        cmd = [conv, "--bpp", "4", "--size", str(px), "--no-compress", "--format", "lvgl",
-               "--font", INTER.format(weight), "-r", "0x20-0x7E"]
+        cmd = [conv, "--bpp", "4", "--size", str(px), "--no-compress", "--format", "lvgl"]
+        if weight:
+            cmd += ["--font", INTER.format(weight), "-r", "0x20-0x7E"]
         if symbols:
             cmd += ["--font", awesome(), "-r", SYMBOLS]
         path = os.path.join(OUT, name + ".c")
@@ -101,7 +113,19 @@ const lv_image_dsc_t ui_logo = {{
     print("wrote ui_logo")
 
 
+def icons():
+    """src/Icons.h: each icon as a UTF-8 string, to put in any text of these fonts."""
+    lines = ["// Made by firmware/make_ui_assets.py: the icons in the screen fonts (FontAwesome Free,",
+             "// SIL OFL 1.1), as UTF-8 strings: text(ICON_OK \" Done\", ...).", "#pragma once"]
+    for name, cp in ICONS.items():
+        lines.append('#define ICON_%s "%s"' % (name, "".join("\\x%02X" % b for b in chr(cp).encode())))
+    with open(os.path.join(FW, "src", "Icons.h"), "w") as f:
+        f.write("\n".join(lines) + "\n")
+    print("wrote Icons.h")
+
+
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     fonts()
     logo()
+    icons()

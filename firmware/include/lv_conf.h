@@ -30,9 +30,9 @@
 #define LV_USE_THEME_SIMPLE 0
 #define LV_USE_THEME_MONO 0
 
-// widgets: only labels, bars and images are used
+// widgets: only labels, bars, images and the spinner (an arc) are used
 #define LV_USE_ANIMIMG 0
-#define LV_USE_ARC 0
+#define LV_USE_ARC 1                   // for the spinner
 #define LV_USE_BUTTON 0
 #define LV_USE_BUTTONMATRIX 0
 #define LV_USE_CALENDAR 0
@@ -52,7 +52,7 @@
 #define LV_USE_SLIDER 0
 #define LV_USE_SPAN 0
 #define LV_USE_SPINBOX 0
-#define LV_USE_SPINNER 0
+#define LV_USE_SPINNER 1               // busy screens
 #define LV_USE_SWITCH 0
 #define LV_USE_TEXTAREA 0
 #define LV_USE_TABLE 0
