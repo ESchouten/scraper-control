@@ -3,6 +3,13 @@ package nl.eschouten.scraper.app
 
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.TimeZone
+import nl.eschouten.scraper.lely.LelyDiscovery
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import nl.eschouten.scraper.lely.Simulator
+import nl.eschouten.scraper.lely.SimulatorLink
+import nl.eschouten.scraper.lely.LinkProvider
 import nl.eschouten.scraper.model.scraperModels
 import nl.eschouten.scraper.texts.tr
 import nl.eschouten.scraper.texts.useLanguage
@@ -11,13 +18,73 @@ import nl.eschouten.scraper.ui.RunFlow
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class WidgetBridgeTest {
   @AfterTest fun reset() {
     scraperModels.forEach { it.uninstallDemo() }
     Widgets.report = null
+    LelyDiscovery.linkProvider = null
     useLanguage("nl")
+  }
+
+  /** A store as the widgets see it, with the simulated robot ([args]) set up in the app. */
+  private val links = mutableListOf<SimulatorLink>()
+
+  private fun simulated(vararg args: String): MemoryStore {
+    LelyDiscovery.linkProvider = LinkProvider(
+      link = { id -> SimulatorLink(args = args.toList(), id = id).also { links += it } },
+      robots = Simulator.robots,
+      scanDelayMs = 10,
+    )
+    val store = MemoryStore()
+    val s = Settings.single(robotId = "00:12:FF:51:4D:00", pin = "4321")
+    s.save(store)
+    WidgetBridge.publish(s, store)
+    return store
+  }
+
+  @Test fun scheduleSwitch() = runBlocking {
+    useLanguage("en")
+    val store = simulated("--planning", "on")
+    val uid = WidgetBridge.robot(store, null)!!.uid
+    assertEquals(null, WidgetBridge.bar(store, uid).scheduleOn)   // not known yet: no switch
+    var lines = listOf<String>()
+    assertTrue(WidgetBridge.setPlanning(store, uid, false) { lines += WidgetBridge.bar(store, uid).status }.ok)
+    assertTrue(lines.first().endsWith("Schedule off: connecting..."), lines.first())   // while it runs
+    val bar = WidgetBridge.bar(store, uid)
+    assertEquals(false, bar.scheduleOn)   // what the robot showed after
+    assertEquals("Schedule off", bar.status)
+    assertEquals(null, store.getString("w.busy.$uid"))
+    assertTrue(WidgetBridge.setPlanning(store, uid, true) {}.ok)
+    assertEquals(true, WidgetBridge.bar(store, uid).scheduleOn)
+    val h = History.load(store).first()
+    assertEquals(EventKind.Planning, h.kind)
+    assertTrue(h.viaWidget)
+    // a second tap while one runs does nothing
+    store.putString("w.busy.$uid", "${kotlin.time.Clock.System.now().toEpochMilliseconds()}")
+    store.putString("w.status.$uid", "08:00  Schedule on: connecting...")
+    assertEquals("08:00  Schedule on: connecting...", WidgetBridge.bar(store, uid).status)
+    val o = WidgetBridge.setPlanning(store, uid, false) {}
+    assertFalse(o.ok)
+    assertEquals(null, WidgetBridge.planningNotice(o))
+    assertEquals(true, WidgetBridge.bar(store, uid).scheduleOn)
+  }
+
+  /** Driving, or the robot's "finish the route?" question on screen: nothing pressed, never answered. */
+  @Test fun scheduleSwitchOnABusyRobotPressesNothing() = runBlocking {
+    useLanguage("en")
+    for (mode in listOf("driving", "question")) {
+      val store = simulated("--mode", mode)
+      val o = WidgetBridge.setPlanning(store, null, false) {}
+      assertFalse(o.ok, mode)
+      assertEquals(Problem.Busy, o.problem, mode)
+      assertEquals(WidgetNotice(tr.planningChangeFailed, o.message), WidgetBridge.planningNotice(o))
+      assertEquals(null, store.getString("w.busy.${WidgetBridge.robot(store, null)!!.uid}"))
+      val rep = links.last().report()
+      assertTrue(Json.parseToJsonElement(rep).jsonObject["pressed"]!!.jsonArray.isEmpty(), rep)
+    }
   }
 
   @Test fun publishTapAndReport() = runBlocking {

@@ -61,7 +61,7 @@ object WidgetViews {
         setTextViewText(R.id.letter, t.route)
         setTextViewText(R.id.name, t.title)
         setTextViewText(R.id.detail, t.detail)
-        setOnClickPendingIntent(R.id.route_root, tap(c, widgetId * 10, t.robotUid, t.route))
+        setOnClickPendingIntent(R.id.route_root, tap(c, widgetId * 10, t.robotUid) { putExtra("route", t.route) })
       }
     } else {
       val b = WidgetBridge.bar(store, robotUid)
@@ -70,27 +70,33 @@ object WidgetViews {
         val shown = b.routes.associateBy { it.route }
         tiles.forEach { (letter, t) ->
           setViewVisibility(t.root, if (letter in shown) View.VISIBLE else View.GONE)
-          setOnClickPendingIntent(t.root, tap(c, widgetId * 10 + 1 + "ABCD".indexOf(letter), b.robotUid, letter))
+          setOnClickPendingIntent(t.root, tap(c, widgetId * 10 + 1 + "ABCD".indexOf(letter), b.robotUid) { putExtra("route", letter) })
           shown[letter]?.let {
             setTextViewText(t.name, it.title)
             setContentDescription(t.root, tr.startRoute(it.title))
           }
         }
         setTextViewText(R.id.status, b.status)
+        // the schedule known: a chip with a switch, a tap switches it to the other state; else opens the app
         val on = b.scheduleOn
-        setViewVisibility(R.id.schedule_dot, if (on == null) View.GONE else View.VISIBLE)
-        if (on != null) setImageViewResource(R.id.schedule_dot, if (on) R.drawable.widget_dot_on else R.drawable.widget_dot_off)
+        setViewVisibility(R.id.schedule_switch, if (on == null) View.GONE else View.VISIBLE)
+        setInt(R.id.schedule, "setBackgroundResource", if (on == null) 0 else R.drawable.widget_chip)
+        if (on != null) {
+          setImageViewResource(R.id.schedule_switch, if (on) R.drawable.widget_switch_on else R.drawable.widget_switch_off)
+          setContentDescription(R.id.schedule, tr.widgetSwitchPlanning(!on))
+        }
         setOnClickPendingIntent(
-          R.id.status,
-          PendingIntent.getActivity(c, widgetId, Intent(c, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT),
+          R.id.schedule,
+          if (on != null) tap(c, widgetId * 10 + 5, b.robotUid) { putExtra("on", !on) }
+          else PendingIntent.getActivity(c, widgetId, Intent(c, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT),
         )
       }
     }
   }
 
-  private fun tap(c: Context, code: Int, robotUid: String?, route: String): PendingIntent {
-    val i = Intent(c, WidgetTapReceiver::class.java).setAction("nl.eschouten.scraper.ROUTE")
-      .putExtra("route", route).putExtra("robot", robotUid)
+  /** A tap for [WidgetTapReceiver]: a "route", or the schedule switched "on" (true/false). */
+  private fun tap(c: Context, code: Int, robotUid: String?, what: Intent.() -> Unit): PendingIntent {
+    val i = Intent(c, WidgetTapReceiver::class.java).setAction("nl.eschouten.scraper.TAP").putExtra("robot", robotUid).apply(what)
     return PendingIntent.getBroadcast(c, code, i, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
   }
 }
@@ -107,20 +113,25 @@ class RouteTileWidget : AppWidgetProvider() {
   }
 }
 
-/** A widget tap: connect, start the route, disconnect, in the background (up to 55 s). */
+/** A widget tap: connect, start the route or switch the schedule, disconnect, in the
+ *  background (up to 55 s). */
 class WidgetTapReceiver : BroadcastReceiver() {
   override fun onReceive(context: Context, intent: Intent) {
-    val route = intent.getStringExtra("route") ?: return
+    val route = intent.getStringExtra("route")
+    val on = if (intent.hasExtra("on")) intent.getBooleanExtra("on", false) else null
+    if (route == null && on == null) return
     val robot = intent.getStringExtra("robot")
     val app = context.applicationContext
     val pending = goAsync()
     CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
       try {
         val store = WidgetViews.store(app)
+        val refresh = { WidgetViews.refreshAll(app) }
         val out = withTimeoutOrNull(55_000) {
-          WidgetBridge.tap(store, robot, route) { WidgetViews.refreshAll(app) }
+          if (on != null) WidgetBridge.setPlanning(store, robot, on, refresh) else WidgetBridge.tap(store, robot, route!!, refresh)
         }
-        WidgetBridge.notice(store, robot, route, out)?.let { WidgetNotify.show(app, it) }
+        val n = if (on != null) WidgetBridge.planningNotice(out) else WidgetBridge.notice(store, robot, route!!, out)
+        n?.let { WidgetNotify.show(app, it) }
         (app as? ScraperApp)?.widgetRan()
       } finally {
         pending.finish()

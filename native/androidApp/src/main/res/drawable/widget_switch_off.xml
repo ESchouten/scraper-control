@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The schedule switch on the routes widget: off (grey, knob left). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="26dp" android:height="15dp" android:viewportWidth="26" android:viewportHeight="15">
+    <path android:fillColor="@color/widget_muted" android:fillAlpha="0.45" android:pathData="M7.5,0h11a7.5,7.5 0,0 1,0 15h-11a7.5,7.5 0,0 1,0 -15z" />
+    <path android:fillColor="#FFFFFF" android:pathData="M7.5,2a5.5,5.5 0,1 1,0 11a5.5,5.5 0,1 1,0 -11z" />
+</vector>

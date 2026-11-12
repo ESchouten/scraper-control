@@ -128,6 +128,8 @@ class Tr(val code: String) {
     next.isEmpty() -> t("Planning aan", "Schedule on")
     else -> t("Planning aan · volgende $next", "Schedule on · next $next")
   }
+  fun widgetSwitchPlanning(on: Boolean): String =
+      if (on) t("Planning aanzetten", "Switch the schedule on") else t("Planning uitzetten", "Switch the schedule off")
   val setupFirst: String get() = t("Stel eerst de app in", "Set up the app first")
   val setupFirstBody: String get() = t(
     "Open Scraper Control en kies je robot. Daarna kun je de widget plaatsen.",

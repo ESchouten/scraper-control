@@ -1,4 +1,5 @@
-// Start a route without opening the app: widget buttons (iOS 17+), Siri and Shortcuts.
+// Start a route without opening the app: widget buttons (iOS 17+), Siri and Shortcuts; and
+// the widget's schedule switch.
 // In both the app and the widget extension. The work is the shared WidgetBridge.tap
 // (connect, start with every safety rule, disconnect), the same as the Android widget.
 import AppIntents
@@ -44,6 +45,34 @@ struct RouteIntent: AppIntent {
       await notifyFailure(n)
     }
     return .result(dialog: IntentDialog(stringLiteral: o.message.isEmpty ? TextsKt.tr.routeStarted(title: route) : o.message))
+  }
+}
+
+/// The bar widget's schedule switch: switch the schedule `on`, the opposite of what the widget
+/// showed. The work is the shared WidgetBridge.setPlanning, the same as the Android widget.
+struct PlanningIntent: AppIntent {
+  static var title: LocalizedStringResource = "Switch the schedule"
+  static var isDiscoverable = false
+
+  @Parameter(title: "On") var on: Bool
+  @Parameter(title: "Robot") var robot: String
+
+  init() {
+    on = true
+    robot = ""
+  }
+
+  init(on: Bool, robot: String) {
+    self.on = on
+    self.robot = robot
+  }
+
+  func perform() async throws -> some IntentResult {
+    let o = try await WidgetBridge.shared.setPlanning(store: widgetStore(), robotUid: robot.isEmpty ? nil : robot, on: on) {
+      WidgetCenter.shared.reloadAllTimelines()
+    }
+    if let n = WidgetBridge.shared.planningNotice(out: o) { await notifyFailure(n) }
+    return .result()
   }
 }
 
