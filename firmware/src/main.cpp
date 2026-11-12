@@ -448,10 +448,12 @@ static Result manualSession(Robot& r) {
     for (int i = 0; i < 3; i++)
       if (btn[i]->wasPressed()) { down[i] = millis(); last = down[i]; }
     // middle held: drive while it stays down
-    if (!drive && down[1] && M5.BtnB.isPressed() && millis() - down[1] >= kDriveAfterMs && r.driveBegin() == Result::Ok) {
-      drive = true;
+    // The screen first, then the key: the robot drives only while "held" repeats every 100 ms
+    // after the key went down, so nothing may come between the two.
+    if (!drive && down[1] && M5.BtnB.isPressed() && millis() - down[1] >= kDriveAfterMs && r.inManual()) {
+      drawManual(r.manualState(), true);
+      drive = r.driveBegin() == Result::Ok;
       driveSince = millis();
-      drawManual(r.manualState(), drive);
     }
     if (drive && (!M5.BtnB.isPressed() || millis() - driveSince > 120000)) {   // released (or 2 min)
       r.driveEnd();
