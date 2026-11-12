@@ -58,6 +58,28 @@ jobs:
             native/composeApp/build/reports/tests/
             native/shared/build/reports/tests/
 
+  windows:
+    if: github.event_name != 'schedule'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the build number is the commit count
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Windows installer (the core built by the Windows compiler; no build secrets: a release has them)
+        working-directory: native
+        shell: bash
+        run: ./gradlew :composeApp:packageDistributionForCurrentOS --console=plain
+      - uses: actions/upload-artifact@v4
+        with:
+          name: scraper-control-windows
+          path: native/composeApp/build/compose/binaries/main/exe/*.exe
+          if-no-files-found: error
+
   ios:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: macos-latest

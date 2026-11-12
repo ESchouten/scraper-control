@@ -1,7 +1,7 @@
 # "scraper_jni": the robot driver with the C API and its JNI bridge, for the Kotlin apps
 # (Android through the NDK, desktop through :shared:buildCoreJni).
 # SCRAPER_DRIVER: the folder in drivers/ to build (needed when there is more than one).
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.15)
 project(scraper_jni LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -33,4 +33,7 @@ if(ANDROID)
 elseif(UNIX AND NOT APPLE)
   # one self-contained .so for the desktop app
   target_link_options(scraper_jni PRIVATE -static-libstdc++ -static-libgcc)
+elseif(MSVC)
+  # the same on Windows: no separate C++ runtime to install
+  set_property(TARGET scraper_jni PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded")
 endif()
