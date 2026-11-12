@@ -41,6 +41,9 @@ compose.desktop {
     mainClass = "nl.eschouten.scraper.app.MainKt"
     nativeDistributions {
       packageName = "Scraper Control"
+      // the app icon (from the iOS/Android icon: icons/icon.icns for the Mac, icons/icon.png for Linux)
+      macOS { iconFile.set(project.file("icons/icon.icns")) }
+      linux { iconFile.set(project.file("icons/icon.png")) }
       targetFormats(
         org.jetbrains.compose.desktop.application.dsl.TargetFormat.Dmg,
         org.jetbrains.compose.desktop.application.dsl.TargetFormat.Deb,
