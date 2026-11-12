@@ -134,7 +134,7 @@ object WidgetBridge {
       r?.uid,
       r?.routes?.map { WidgetButton(it.l, it.t) } ?: Settings.allRoutes.map { WidgetButton(it, tr.routeLetter(it)) },
       when {
-        busy && last != null -> last
+        busy && last != null -> last.substringAfter("  ")   // without its time: the line stays short
         planning != null -> tr.widgetSchedule(planning, next)
         else -> last ?: tr.tapRouteToStart
       },

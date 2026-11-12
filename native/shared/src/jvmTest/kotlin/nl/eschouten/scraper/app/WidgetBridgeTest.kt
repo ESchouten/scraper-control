@@ -52,7 +52,7 @@ class WidgetBridgeTest {
     assertEquals(null, WidgetBridge.bar(store, uid).scheduleOn)   // not known yet: no switch
     var lines = listOf<String>()
     assertTrue(WidgetBridge.setPlanning(store, uid, false) { lines += WidgetBridge.bar(store, uid).status }.ok)
-    assertTrue(lines.first().endsWith("Schedule off: connecting..."), lines.first())   // while it runs
+    assertEquals("Schedule off: connecting...", lines.first())   // while it runs
     val bar = WidgetBridge.bar(store, uid)
     assertEquals(false, bar.scheduleOn)   // what the robot showed after
     assertEquals("Schedule off", bar.status)
@@ -65,7 +65,7 @@ class WidgetBridgeTest {
     // a second tap while one runs does nothing
     store.putString("w.busy.$uid", "${kotlin.time.Clock.System.now().toEpochMilliseconds()}")
     store.putString("w.status.$uid", "08:00  Schedule on: connecting...")
-    assertEquals("08:00  Schedule on: connecting...", WidgetBridge.bar(store, uid).status)
+    assertEquals("Schedule on: connecting...", WidgetBridge.bar(store, uid).status)
     val o = WidgetBridge.setPlanning(store, uid, false) {}
     assertFalse(o.ok)
     assertEquals(null, WidgetBridge.planningNotice(o))
