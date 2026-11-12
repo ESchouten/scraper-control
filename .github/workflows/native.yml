@@ -70,7 +70,7 @@ jobs:
           distribution: temurin
           java-version: "17"
       - uses: gradle/actions/setup-gradle@v4
-      - name: Windows installer (the core built by the Windows compiler; no build secrets: a release has them)
+      - name: Windows installer, the core built by the Windows compiler (without build secrets, a release has them)
         working-directory: native
         shell: bash
         run: ./gradlew :composeApp:packageDistributionForCurrentOS --console=plain
