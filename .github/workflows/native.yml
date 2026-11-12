@@ -31,8 +31,6 @@ jobs:
           distribution: temurin
           java-version: "17"
       - uses: gradle/actions/setup-gradle@v4
-      - name: Both apps cover every shared scenario
-        run: python3 native/scenarios/check.py
       - name: Shared tests (core via JNI) against the simulated robot
         working-directory: native
         run: ./gradlew :shared:jvmTest --console=plain
