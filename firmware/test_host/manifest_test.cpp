@@ -45,8 +45,8 @@ int main(int argc, char** argv) {
   assert(toHex(x, 2) == "ab01");
   {  // the small HTTPS GET: URL, status line, headers
     std::string host, path, v;
-    assert(parseUrl("https://github.com/a/b/releases/latest/download/firmware.txt", host, path));
-    assert(host == "github.com" && path == "/a/b/releases/latest/download/firmware.txt");
+    assert(parseUrl("https://github.com/a/b/releases/latest/download/update.ini", host, path));
+    assert(host == "github.com" && path == "/a/b/releases/latest/download/update.ini");
     assert(parseUrl("https://example.org", host, path) && host == "example.org" && path == "/");
     assert(!parseUrl("http://github.com/x", host, path));
     assert(statusCode("HTTP/1.1 302 Found") == 302 && statusCode("HTTP/1.0 200 OK") == 200 && statusCode("garbage") == 0);
