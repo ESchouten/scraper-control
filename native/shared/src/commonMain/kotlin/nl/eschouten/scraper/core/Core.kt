@@ -45,12 +45,9 @@ enum class RobotKey(val code: Int) {
 data class CoreStatus(
   /** Time planning on/off; null = not on the home screen. */
   val planning: Boolean? = null,
-  val clock: String = "",
   val nextRide: String = "",
   val route: String = "",
   val action: String = "",
-  val actionNo: String = "",
-  val rideNo: String = "",
   val batteryMv: Int? = null,
   val busy: Boolean = true,
   /** A route runs (driving screen): stopRoute() can stop it. */
@@ -71,8 +68,7 @@ data class CoreStatus(
       fun b(k: String) = d[k]?.jsonPrimitive?.booleanOrNull
       return CoreStatus(
         planning = when (i("planning")) { 1 -> true; 0 -> false; else -> null },
-        clock = s("clock"), nextRide = s("nextRide"), route = s("route"), action = s("action"),
-        actionNo = s("actionNo"), rideNo = s("rideNo"),
+        nextRide = s("nextRide"), route = s("route"), action = s("action"),
         batteryMv = i("batteryMv")?.takeIf { it >= 0 },
         busy = b("busy") ?: true, driving = b("driving") ?: false, stopQuestion = b("stopQuestion") ?: false,
         screen = s("screen"), highlighted = s("highlighted"), language = s("language"),
@@ -120,8 +116,8 @@ internal expect fun nativeEncryptPin(pin: String): ByteArray
 /** How the driver's robot is reached (scraper_link_json), as JSON. */
 internal expect fun nativeLinkJson(): String
 
-/** The result in words, "nl" or "en". Swift: CoreKt.coreResultText(result:language:). */
-fun coreResultText(result: CoreResult, language: String = "nl"): String = nativeResultText(result.code, language)
+/** The result in words, "nl" or "en". */
+internal fun coreResultText(result: CoreResult, language: String): String = nativeResultText(result.code, language)
 
 /** One connection's worth of robot logic in the core. Commands run one at a time. */
 class CoreSession(
@@ -147,8 +143,6 @@ class CoreSession(
       }
     })
   }
-
-  val isOpen: Boolean get() = native != null
 
   /** Bytes from the robot (TX notifications). */
   fun feed(data: ByteArray) {

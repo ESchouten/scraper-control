@@ -37,7 +37,10 @@ import nl.eschouten.scraper.ui.APP_NAME
   val planning: Boolean? = null,
   val next: String = "",
   val seen: Long = 0,
-)
+) {
+  /** Route [l]'s name, or "Route A". */
+  fun title(l: String) = routes.firstOrNull { it.l == l }?.t ?: tr.routeLetter(l)
+}
 
 data class WidgetButton(val route: String, val title: String)
 
@@ -116,7 +119,7 @@ object WidgetBridge {
     return WidgetBar(
       r?.name ?: APP_NAME,
       r?.uid,
-      r?.routes?.map { WidgetButton(it.l, it.t) } ?: Settings.allRoutes.map { WidgetButton(it, "Route $it") },
+      r?.routes?.map { WidgetButton(it.l, it.t) } ?: Settings.allRoutes.map { WidgetButton(it, tr.routeLetter(it)) },
       if (planning != null) tr.widgetSchedule(planning, next)
       else r?.let { store.getString("w.status.${it.uid}") } ?: tr.tapRouteToStart,
       planning,
@@ -145,7 +148,7 @@ object WidgetBridge {
     val last = r?.let { store.getString("w.route.${it.uid}.$l") }.orEmpty()
     return WidgetTile(
       r?.uid, l,
-      r?.routes?.firstOrNull { it.l == l }?.t ?: "Route $l",
+      r?.title(l) ?: tr.routeLetter(l),
       when {
         last.isNotEmpty() -> last
         robots(store).size > 1 && r != null -> r.name
@@ -159,7 +162,7 @@ object WidgetBridge {
   fun notice(store: Store, robotUid: String?, route: String, out: Outcome?): WidgetNotice? {
     if (out != null && (out.ok || out.stopped || out.message.isEmpty())) return null
     val letter = route.uppercase()
-    val title = robot(store, robotUid)?.routes?.firstOrNull { it.l == letter }?.t ?: "Route $letter"
+    val title = robot(store, robotUid)?.title(letter) ?: tr.routeLetter(letter)
     return WidgetNotice(tr.widgetFailedTitle(title), out?.message ?: tr.widgetTimedOut)
   }
 

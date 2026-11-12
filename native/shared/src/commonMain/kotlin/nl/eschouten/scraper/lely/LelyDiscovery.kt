@@ -1,6 +1,6 @@
 // Lely Discovery: the first implementation of the generic scraper model. All robot logic
 // (screens, route steps, safety rules) is in the shared C++ core; this file only translates
-// between that core (Lely, CoreSession) and model/Scraper.kt. Ported from scraper_discovery.dart.
+// between that core (Lely, CoreSession) and model/Scraper.kt.
 package nl.eschouten.scraper.lely
 
 import nl.eschouten.scraper.core.*
@@ -37,10 +37,7 @@ object LelyDiscovery : ScraperModel() {
   override val id = "lely.discovery"
   override val brand = "Lely"
   override val name = "Discovery"
-  override val capabilities = setOf(Capability.Routes, Capability.DryRun, Capability.Planning, Capability.Battery, Capability.NextRun, Capability.Stop, Capability.RouteContents)
-  override val routeSlots = listOf("A", "B", "C", "D")
-
-  override val usesPin = true
+  override val capabilities = setOf(Capability.Routes, Capability.Planning, Capability.Battery, Capability.NextRun, Capability.Stop, Capability.RouteContents)
   override val pinHelp get() = tr.btPinHelp
   override val reachHelp get() = tr.btReachHelp
   override val scanHelp get() = tr.btScanHelp

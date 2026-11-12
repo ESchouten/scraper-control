@@ -138,7 +138,7 @@ fun HomeScreen(controller: RobotController, host: AppHost, nav: Nav) {
     }
   }
 
-  runRoute?.let { r -> RunSheet(controller, r, nav, onClose = { runRoute = null }) }
+  runRoute?.let { r -> RunSheet(controller, r, onClose = { runRoute = null }) }
   if (switcher) RobotSwitcher(controller, nav, onClose = { switcher = false })
   if (askPlanning) {
     ConfirmDialog(planningConfirm(s), onDismiss = { askPlanning = false }) {

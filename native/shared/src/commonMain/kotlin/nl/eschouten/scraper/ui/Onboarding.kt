@@ -2,14 +2,9 @@
 // later. The flow lives here; the apps draw the pages.
 package nl.eschouten.scraper.ui
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.launch
 import nl.eschouten.scraper.app.Cancellable
-import nl.eschouten.scraper.app.immediateOrDefault
 import nl.eschouten.scraper.app.ControllerState
 import nl.eschouten.scraper.app.Outcome
 import nl.eschouten.scraper.app.Problem
@@ -53,12 +48,8 @@ data class PinPage(
   val done: Action?,
 )
 
-class OnboardingFlow(
-  private val controller: RobotController,
-  val platform: Platform,
-  private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
-) {
-  constructor(controller: RobotController, platform: Platform) : this(controller, platform, newScope())
+class OnboardingFlow(private val controller: RobotController, val platform: Platform) {
+  private val scope = newScope()
 
   private val _state = MutableStateFlow(OnboardingState(pin = controller.state.value.robot.pin))
   val state: StateFlow<OnboardingState> = _state
@@ -69,10 +60,7 @@ class OnboardingFlow(
     initialName = controller.state.value.robot.robotName, platform = platform, scope = scope,
   )
 
-  fun watch(onChange: (OnboardingState) -> Unit): Cancellable {
-    val job = scope.launch(Dispatchers.Main.immediateOrDefault()) { _state.collect { onChange(it) } }
-    return Cancellable { job.cancel() }
-  }
+  fun watch(onChange: (OnboardingState) -> Unit): Cancellable = _state.watchIn(scope, onChange)
 
   fun goto(p: OnboardingPage) {
     _state.value = _state.value.copy(page = p, result = null)
@@ -176,20 +164,13 @@ data class AddRobotPage(
 
 data class AddRobotState(val modelId: String = scraperModels.first().id, val label: String = "", val pin: String = "", val saving: Boolean = false)
 
-class AddRobotFlow(
-  private val controller: RobotController,
-  platform: Platform,
-  private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
-) {
-  constructor(controller: RobotController, platform: Platform) : this(controller, platform, newScope())
+class AddRobotFlow(private val controller: RobotController, platform: Platform) {
+  private val scope = newScope()
 
   private val _state = MutableStateFlow(AddRobotState())
   val state: StateFlow<AddRobotState> = _state
 
-  fun watch(onChange: (AddRobotState) -> Unit): Cancellable {
-    val job = scope.launch(Dispatchers.Main.immediateOrDefault()) { _state.collect { onChange(it) } }
-    return Cancellable { job.cancel() }
-  }
+  fun watch(onChange: (AddRobotState) -> Unit): Cancellable = _state.watchIn(scope, onChange)
 
   val scan = ScanFlow(
     scraperModels.first(), exclude = controller.state.value.robots.map { it.robotId }.toSet(),

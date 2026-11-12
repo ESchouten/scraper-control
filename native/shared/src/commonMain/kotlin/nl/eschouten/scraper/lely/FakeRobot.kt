@@ -125,7 +125,7 @@ class FakeRobotLink(
   }
 
   // The robot's PIN is o.pin: accept exactly what the core makes of it. The core holds the
-  // key (the real one, or a test key in a build without tools/app_key.py).
+  // key (the real one, or a test key in a build without tools/secrets.py).
   private fun pinOk(p: ByteArray): Boolean = p.contentEquals(nativeEncryptPin(o.pin))
 
   private fun u16(i: Int) = (buf[i].toInt() and 0xff) or ((buf[i + 1].toInt() and 0xff) shl 8)

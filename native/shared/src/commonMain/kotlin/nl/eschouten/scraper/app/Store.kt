@@ -19,10 +19,8 @@ interface Store {
 
 class MemoryStore(initial: Map<String, String> = emptyMap()) : Store {
   private val map = initial.toMutableMap()
-  override fun getString(key: String): String? = synchronizedGet(key)
+  override fun getString(key: String): String? = map[key]
   override fun putString(key: String, value: String?) {
     if (value == null) map.remove(key) else map[key] = value
   }
-  private fun synchronizedGet(key: String) = map[key]
-  fun snapshot(): Map<String, String> = map.toMap()
 }

@@ -1,16 +1,15 @@
 // Everything an app does with a robot goes through one RobotController, so route buttons,
-// a type's own screens and the home-screen widget never open two connections. Ported from
-// app/lib/robot_controller.dart. It only knows the generic model (model/Scraper.kt); the
+// a type's own screens and the home-screen widget never open two connections. It only knows the generic model (model/Scraper.kt); the
 // robot logic itself is in the type's implementation.
 //
 // Screens read [state] (a StateFlow; Swift: watch {}) and call the suspend functions.
 package nl.eschouten.scraper.app
 
+import nl.eschouten.scraper.ui.newScope
+import nl.eschouten.scraper.ui.watchIn
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -88,7 +87,7 @@ class RobotController(
   val settings: Settings,
   private val store: Store,
   val viaWidget: Boolean = false,
-  private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+  private val scope: CoroutineScope = newScope(),
   /** Keep the home-screen widgets in step (robots, names, visible routes). Platform sets it. */
   var onPublish: ((Settings) -> Unit)? = null,
   private val now: () -> Long = { Clock.System.now().toEpochMilliseconds() },
@@ -110,10 +109,7 @@ class RobotController(
   val state: StateFlow<ControllerState> = _state
 
   /** Swift: observe the state without Flow. Called at once with the current state. */
-  fun watch(onChange: (ControllerState) -> Unit): Cancellable {
-    val job = scope.launch(Dispatchers.Main.immediateOrDefault()) { _state.collect { onChange(it) } }
-    return Cancellable { job.cancel() }
-  }
+  fun watch(onChange: (ControllerState) -> Unit): Cancellable = _state.watchIn(scope, onChange)
 
   val isConnected get() = robot?.isConnected ?: false
 
@@ -483,10 +479,5 @@ class RobotController(
 
   private fun emit() {
     _state.value = build()
-  }
-
-  fun close(scopeToo: Boolean) {
-    dispose()
-    if (scopeToo) scope.cancel()
   }
 }

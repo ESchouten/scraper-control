@@ -1,5 +1,4 @@
-// Scraper Control design system: the same values as the Compose app (Theme.kt) and the
-// Flutter app. Brand red for brand surfaces and the one primary action; the rest is warm
+// Scraper Control design system: the same values as the Compose app (Theme.kt). Brand red for brand surfaces and the one primary action; the rest is warm
 // neutral. Status is never colour alone: always an icon and a word as well.
 import Shared
 import SwiftUI
@@ -22,7 +21,6 @@ enum Brand {
   static let red = Color(hex: 0xC8102E)
   static let redDeep = Color(hex: 0x9B0C24)
   static let redLight = Color(hex: 0xE0243F)
-  static let ink = Color(hex: 0x1C1B1B)
 }
 
 /// The colour scheme, named as in Material so both apps read the same.
@@ -50,19 +48,19 @@ enum C {
   static let idle = Color(light: 0x8A8584, dark: 0x9C9695)
 }
 
-/// Spacing (4-pt grid) and radii, so screens line up.
 /// A text size that follows the phone's text size (Dynamic Type), like sp in Compose. Capped at
 /// 1.6x so labels in fixed shapes (badges, the facts row) stay inside; the panel's keys and the
 /// robot's display keep their fixed sizes on purpose.
 func scaled(_ size: CGFloat) -> CGFloat { min(UIFontMetrics.default.scaledValue(for: size), size * 1.6) }
 
+/// Spacing (4-pt grid) and radii, so screens line up.
 enum Space {
   static let xs: CGFloat = 4, s: CGFloat = 8, m: CGFloat = 12, l: CGFloat = 16, xl: CGFloat = 24, xxl: CGFloat = 32
   static let gutter: CGFloat = 20
 }
 
 enum Radii {
-  static let s: CGFloat = 10, m: CGFloat = 14, l: CGFloat = 20, xl: CGFloat = 28
+  static let m: CGFloat = 14, l: CGFloat = 20
 }
 
 /// Foreground and soft background of a shared tone.

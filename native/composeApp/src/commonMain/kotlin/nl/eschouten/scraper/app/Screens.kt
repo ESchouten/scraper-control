@@ -340,7 +340,7 @@ fun RobotSettingsScreen(controller: RobotController, nav: Nav, uid: String) {
 fun ChooseDeviceScreen(controller: RobotController, host: AppHost, nav: Nav, uid: String) {
   val flow = remember(uid) { deviceScan(controller.state.value, uid, host.platform) } ?: return
   val scope = rememberCoroutineScope()
-  PushedScreen("Bluetooth", nav, "choose-device") {
+  PushedScreen(tr.bluetooth, nav, "choose-device") {
     item {
       ScanView(flow) { id ->
         flow.select(id)
@@ -376,7 +376,7 @@ fun AddRobotScreen(controller: RobotController, host: AppHost, nav: Nav) {
       }
     }
     item {
-      SectionHeader("Bluetooth")
+      SectionHeader(tr.bluetooth)
       ScanView(flow.scan) { flow.scan.select(it) }
     }
     item {

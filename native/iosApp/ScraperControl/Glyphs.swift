@@ -26,12 +26,10 @@ extension Glyph {
     case .restart: return "arrow.counterclockwise"
     case .badge: return "person.text.rectangle"
     case .delete_: return "trash"
-    case .info: return "info.circle"
     case .dialpad: return "circle.grid.3x3"
     case .phone: return "iphone"
     case .play: return "play.fill"
     case .refresh: return "arrow.clockwise"
-    case .chevron: return "chevron.right"
     default: return "questionmark"
     }
   }

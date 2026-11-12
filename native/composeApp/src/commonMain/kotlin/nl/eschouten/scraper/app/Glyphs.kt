@@ -5,7 +5,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Badge
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.ErrorOutline
-import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Pending
 import androidx.compose.material.icons.outlined.Science
@@ -19,7 +18,6 @@ import androidx.compose.material.icons.rounded.Bluetooth
 import androidx.compose.material.icons.rounded.BluetoothDisabled
 import androidx.compose.material.icons.rounded.BluetoothSearching
 import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Dialpad
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.PhoneAndroid
@@ -55,10 +53,8 @@ val Glyph.icon: ImageVector
     Glyph.Restart -> Icons.Rounded.RestartAlt
     Glyph.Badge -> Icons.Outlined.Badge
     Glyph.Delete -> Icons.Outlined.DeleteOutline
-    Glyph.Info -> Icons.Outlined.Info
     Glyph.Dialpad -> Icons.Rounded.Dialpad
     Glyph.Phone -> Icons.Rounded.PhoneAndroid
     Glyph.Play -> Icons.Rounded.PlayArrow
     Glyph.Refresh -> Icons.Rounded.Refresh
-    Glyph.Chevron -> Icons.Rounded.ChevronRight
   }

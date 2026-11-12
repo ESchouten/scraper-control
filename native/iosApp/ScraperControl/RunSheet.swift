@@ -171,7 +171,6 @@ struct StepsProgress: View {
 /// matters for something that makes a robot drive. VoiceOver gets a plain activate action.
 struct SlideToConfirm: View {
   let label: String
-  var enabled = true
   let onConfirmed: () -> Void
   @State private var x: CGFloat = 0
   @State private var done = false
@@ -196,9 +195,9 @@ struct SlideToConfirm: View {
           .offset(x: x)
           .gesture(
             DragGesture()
-              .onChanged { d in if enabled && !done { x = min(max(d.translation.width, 0), maxX) } }
+              .onChanged { d in if !done { x = min(max(d.translation.width, 0), maxX) } }
               .onEnded { _ in
-                guard enabled && !done else { return }
+                guard !done else { return }
                 if x >= maxX * 0.9 {
                   x = maxX
                   done = true
@@ -213,11 +212,10 @@ struct SlideToConfirm: View {
       }
     }
     .frame(height: h)
-    .opacity(enabled ? 1 : 0.5)
     .accessibilityElement(children: .ignore)
     .accessibilityLabel(label)
     .accessibilityAddTraits(.isButton)
-    .accessibilityAction { if enabled { onConfirmed() } }
+    .accessibilityAction { onConfirmed() }
   }
 }
 

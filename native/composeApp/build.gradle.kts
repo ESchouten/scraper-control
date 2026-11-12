@@ -6,9 +6,6 @@ plugins {
   id("org.jetbrains.compose")
 }
 
-val hasAndroid = listOf("ANDROID_HOME", "ANDROID_SDK_ROOT").any { v ->
-  System.getenv(v)?.let { File(it).isDirectory } == true
-}
 
 kotlin {
   jvm {
@@ -27,7 +24,6 @@ kotlin {
       implementation(kotlin("test"))
       @OptIn(org.jetbrains.compose.ExperimentalComposeLibrary::class)
       implementation(compose.uiTest)
-      implementation(compose.desktop.currentOs)
     }
     jvmMain.dependencies {
       implementation(compose.desktop.currentOs)
@@ -48,13 +44,9 @@ compose.desktop {
         org.jetbrains.compose.desktop.application.dsl.TargetFormat.Dmg,
         org.jetbrains.compose.desktop.application.dsl.TargetFormat.Deb,
       )
-      // 1.6.120: MAJOR.MINOR from gradle.properties, the build number as the third number
-      packageVersion = providers.gradleProperty("scraper.version").get() + "." +
-        ((providers.exec { commandLine("git", "rev-list", "--count", "HEAD"); isIgnoreExitValue = true }
-          .standardOutput.asText.get().trim().toIntOrNull() ?: 0) +
-          (providers.gradleProperty("scraper.buildBase").orNull?.toIntOrNull() ?: 0))
+      packageVersion = rootProject.extra["appVersion"] as String   // 1.6.120 (build.gradle.kts)
     }
   }
 }
 
-if (hasAndroid) apply(from = "android.gradle")
+if (findProject(":androidApp") != null) apply(from = "android.gradle")   // an Android SDK is there

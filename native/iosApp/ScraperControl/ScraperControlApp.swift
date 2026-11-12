@@ -6,6 +6,7 @@
 // launch argument -demo "<words>" (see shared app/AppStart.kt).
 import Shared
 import SwiftUI
+import WidgetKit
 
 /// The shared texts (same as the Compose app): `tr.cancel`, `tr.routeStarted(title: "A")`.
 var tr: Tr { TextsKt.tr }
@@ -25,7 +26,10 @@ var tr: Tr { TextsKt.tr }
     var demo = ProcessInfo.processInfo.environment["SCRAPER_DEMO"]
     if let i = args.firstIndex(of: "-demo") { demo = i + 1 < args.count ? args[i + 1] : "" }
     isDemo = demo != nil
-    controller = AppStart.shared.controller(store: DefaultsStore(suiteName: "group.nl.eschouten.scraper"), demo: demo, viaWidget: false)
+    let store = widgetStore()   // the App Group: the widgets read the same store
+    controller = AppStart.shared.controller(store: store, demo: demo, viaWidget: false)
+    // robots, routes, schedule and results to the widgets (as on Android)
+    if demo == nil { WidgetBridge.shared.install(controller: controller, store: store) { WidgetCenter.shared.reloadAllTimelines() } }
     state = controller.state.value as! ControllerState
     handle = controller.watch { [weak self] s in self?.state = s }
   }

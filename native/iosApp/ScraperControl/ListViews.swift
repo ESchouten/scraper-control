@@ -255,7 +255,7 @@ struct ChooseDeviceView: View {
   }
 
   var body: some View {
-    Pushed(title: "Bluetooth", testId: "choose-device") {
+    Pushed(title: tr.bluetooth, testId: "choose-device") {
       if let flow {
         ScanView(flow: flow) { id in
           flow.select(id: id)
@@ -298,7 +298,7 @@ struct AddRobotView: View {
         }
         .pickerStyle(.segmented)
       }
-      SectionHeader("Bluetooth")
+      SectionHeader(tr.bluetooth)
       ScanView(flow: flow.scan) { id in flow.scan.select(id: id) }
       SectionHeader(v.detailsTitle)
       VStack(spacing: Space.m) {

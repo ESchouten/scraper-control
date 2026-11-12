@@ -4,7 +4,7 @@ apply plugin: 'com.android.kotlin.multiplatform.library'
 kotlin {
   androidLibrary {
     namespace = 'nl.eschouten.scraper.ui'
-    compileSdk { version = release(37) { minorApiLevel = 0 } }
-    minSdk = 24
+    compileSdk { version = release(rootProject.ext.androidCompileSdk) { minorApiLevel = 0 } }
+    minSdk = rootProject.ext.androidMinSdk
   }
 }

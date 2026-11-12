@@ -5,16 +5,27 @@ package nl.eschouten.scraper.ui
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
+import nl.eschouten.scraper.app.Cancellable
+import nl.eschouten.scraper.app.immediateOrDefault
 
 /** The scope of a screen's flow. */
 internal fun newScope() = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+/** The flows' watch() (for Swift, which has no Flow): [onChange] on the main thread with the
+ *  current state and every change, until cancelled. */
+internal fun <T> StateFlow<T>.watchIn(scope: CoroutineScope, onChange: (T) -> Unit): Cancellable {
+  val job = scope.launch(Dispatchers.Main.immediateOrDefault()) { collect { onChange(it) } }
+  return Cancellable { job.cancel() }
+}
 
 enum class Tone { Ok, Warn, Idle, Error, Brand, Neutral }
 
 enum class Glyph {
   Check, Stop, Science, BluetoothOff, BluetoothSearching, Bluetooth, Lock, Pending, Visibility, Error,
-  Schedule, Shield, Touch, Robot, Add, Widgets, Translate, Logbook, Restart, Badge, Delete, Info, Dialpad,
-  Phone, Play, Refresh, Chevron,
+  Schedule, Shield, Touch, Robot, Add, Widgets, Translate, Logbook, Restart, Badge, Delete, Dialpad,
+  Phone, Play, Refresh,
 }
 
 enum class Platform { Android, Ios, Desktop }

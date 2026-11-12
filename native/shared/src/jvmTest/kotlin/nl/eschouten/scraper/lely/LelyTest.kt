@@ -1,5 +1,5 @@
 // Runs the real C++ core (JNI) and the Kotlin Lely API against the simulated robot from
-// tests/fake_robot.py, the same simulator the C++, Python and Dart tests use.
+// tests/fake_robot.py, the same simulator the C++ and Python tests use.
 package nl.eschouten.scraper.lely
 
 import nl.eschouten.scraper.core.*

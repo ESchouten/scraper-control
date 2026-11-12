@@ -138,7 +138,7 @@ fun OnboardingScreen(controller: RobotController, host: AppHost, nav: Nav) {
               Row(verticalAlignment = Alignment.CenterVertically) {
                 TextButton({ scope.launch { flow.finish() } }, Modifier.testTag(v.later.testId), enabled = v.later.enabled) { Text(v.later.label, fontWeight = FontWeight.Bold) }
                 Spacer(Modifier.width(Space.m))
-                ActionButton(v.test.copy(primary = true), Modifier.weight(1f)) { scope.launch { flow.test() } }
+                ActionButton(v.test, Modifier.weight(1f)) { scope.launch { flow.test() } }
               }
             }
           }) {

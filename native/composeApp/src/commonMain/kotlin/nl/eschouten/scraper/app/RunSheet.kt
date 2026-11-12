@@ -90,7 +90,7 @@ import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RunSheet(controller: RobotController, route: String, nav: Nav, onClose: () -> Unit) {
+fun RunSheet(controller: RobotController, route: String, onClose: () -> Unit) {
   val flow = remember(route) { RunFlow(controller, route) }
   val cs by controller.state.collectAsState()
   val st by flow.state.collectAsState()

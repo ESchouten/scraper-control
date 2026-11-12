@@ -1,18 +1,38 @@
 # The iOS app (SwiftUI) on top of the shared Kotlin module. Generate the Xcode project with
 #   brew install xcodegen && cd native/iosApp && xcodegen
-# then open ScraperControl.xcodeproj. The build runs Gradle for the Shared framework.
-# UI tests (the shared scenarios, demo robot):
-#   xcodebuild test -project ScraperControl.xcodeproj -scheme ScraperControl \
-#     -destination 'platform=iOS Simulator,name=iPhone 15 Pro' TEST_RUNNER_SCREENSHOT_DIR=/tmp/shots
+# then open ScraperControl.xcodeproj. The build runs Gradle for the Shared framework and
+# set-version.sh for the version (1.6.<build>). UI tests: ./run-ui-tests.sh
 name: ScraperControl
 options:
   bundleIdPrefix: nl.eschouten
   deploymentTarget:
     iOS: "16.0"
+settings:
+  base:
+    FRAMEWORK_SEARCH_PATHS: $(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)
+    OTHER_LDFLAGS: [-framework, Shared, -lc++]
+    # the Shared framework is built for Apple Silicon simulators only (iosSimulatorArm64)
+    "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64
+targetTemplates:
+  # The app and the widgets: the Shared framework before, the version into Info.plist after.
+  SharedModule:
+    preBuildScripts:
+      - name: Shared Kotlin module
+        basedOnDependencyAnalysis: false
+        script: |
+          cd "$SRCROOT/.." && ./gradlew :shared:embedAndSignAppleFrameworkForXcode
+    postBuildScripts:
+      - name: Version MAJOR.MINOR.build
+        basedOnDependencyAnalysis: false
+        # the processed Info.plist as input: Xcode then runs this after it, not before
+        inputFiles: ["$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)"]
+        script: |
+          "$SRCROOT/set-version.sh"
 targets:
   ScraperControl:
     type: application
     platform: iOS
+    templates: [SharedModule]
     sources: [ScraperControl, Intents]
     dependencies:
       - target: ScraperWidgets
@@ -25,58 +45,24 @@ targets:
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription: Om de robot te bedienen via Bluetooth.
         CODE_SIGN_ENTITLEMENTS: ScraperControl/App.entitlements
-        MARKETING_VERSION: "1.6"   # = gradle.properties; set-version.sh adds the build: 1.6.120
-        CURRENT_PROJECT_VERSION: 1
         ENABLE_USER_SCRIPT_SANDBOXING: NO
-        FRAMEWORK_SEARCH_PATHS: $(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)
-        OTHER_LDFLAGS: [-framework, Shared, -lc++]
-        # the Shared framework is built for Apple Silicon simulators only (iosSimulatorArm64)
-        "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64
-    preBuildScripts:
-      - name: Shared Kotlin module
-        basedOnDependencyAnalysis: false
-        script: |
-          cd "$SRCROOT/.." && ./gradlew :shared:embedAndSignAppleFrameworkForXcode
-    postBuildScripts:
-      - name: Version MAJOR.MINOR.build
-        basedOnDependencyAnalysis: false
-        # the processed Info.plist as input: Xcode then runs this after it, not before
-        inputFiles: ["$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)"]
-        script: |
-          "$SRCROOT/set-version.sh"
   ScraperWidgets:
     type: app-extension
     platform: iOS
+    templates: [SharedModule]
     deploymentTarget: "17.0"
     sources: [Widgets, Intents]
     info:
       path: Widgets/Info.plist
       properties:
         CFBundleDisplayName: Scraper Control
+        NSBluetoothAlwaysUsageDescription: Om de robot te bedienen via Bluetooth.   # a tap connects from here
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: nl.eschouten.scraper.widgets
         CODE_SIGN_ENTITLEMENTS: Widgets/Widgets.entitlements
-        MARKETING_VERSION: "1.6"
-        CURRENT_PROJECT_VERSION: 1
-        FRAMEWORK_SEARCH_PATHS: $(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)
-        OTHER_LDFLAGS: [-framework, Shared, -lc++]
-        "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64
-        INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription: Om de robot te bedienen via Bluetooth.
-    preBuildScripts:
-      - name: Shared Kotlin module
-        basedOnDependencyAnalysis: false
-        script: |
-          cd "$SRCROOT/.." && ./gradlew :shared:embedAndSignAppleFrameworkForXcode
-    postBuildScripts:
-      - name: Version MAJOR.MINOR.build
-        basedOnDependencyAnalysis: false
-        # the processed Info.plist as input: Xcode then runs this after it, not before
-        inputFiles: ["$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)"]
-        script: |
-          "$SRCROOT/set-version.sh"
   ScraperControlUITests:
     type: bundle.ui-testing
     platform: iOS
@@ -88,9 +74,6 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         PRODUCT_BUNDLE_IDENTIFIER: nl.eschouten.scraper.uitests
         TEST_TARGET_NAME: ScraperControl
-        FRAMEWORK_SEARCH_PATHS: $(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)
-        OTHER_LDFLAGS: [-framework, Shared, -lc++]
-        "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64
 schemes:
   ScraperControl:
     build:

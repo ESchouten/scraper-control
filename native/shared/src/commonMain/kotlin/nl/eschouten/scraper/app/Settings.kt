@@ -1,5 +1,4 @@
-// What the apps remember: the robots, which one is active, and a few flags. Ported from
-// app/lib/settings.dart (same JSON keys). Profiles are immutable; change them with copy()
+// What the apps remember: the robots, which one is active, and a few flags. Profiles are immutable; change them with copy()
 // and Settings.update(), so a screen never sees half a change.
 package nl.eschouten.scraper.app
 
@@ -8,6 +7,7 @@ import kotlinx.serialization.json.Json
 import nl.eschouten.scraper.model.ScraperModel
 import nl.eschouten.scraper.model.defaultModelId
 import nl.eschouten.scraper.model.modelFor
+import nl.eschouten.scraper.texts.tr
 import nl.eschouten.scraper.texts.useLanguage
 import kotlin.random.Random
 
@@ -49,7 +49,7 @@ data class RobotProfile(
     }
 
   fun routeName(r: String) = (routeNames[r] ?: "").trim()
-  fun routeTitle(r: String) = routeName(r).ifEmpty { "Route $r" }
+  fun routeTitle(r: String) = routeName(r).ifEmpty { tr.routeLetter(r) }
   val visibleRoutes: List<String> get() = routes.map { it.toString() }
 
   companion object {

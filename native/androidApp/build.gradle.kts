@@ -7,15 +7,13 @@ plugins {
 
 android {
   namespace = "nl.eschouten.scraper"
-  compileSdk { version = release(37) { minorApiLevel = 0 } }
+  compileSdk { version = release(rootProject.extra["androidCompileSdk"] as Int) { minorApiLevel = 0 } }
   defaultConfig {
     applicationId = "nl.eschouten.scraper"
-    minSdk = 24
+    minSdk = rootProject.extra["androidMinSdk"] as Int
     targetSdk = 36
-    versionCode = (providers.exec { commandLine("git", "rev-list", "--count", "HEAD"); isIgnoreExitValue = true }
-      .standardOutput.asText.get().trim().toIntOrNull() ?: 1) +
-      (providers.gradleProperty("scraper.buildBase").orNull?.toIntOrNull() ?: 0)
-    versionName = "${providers.gradleProperty("scraper.version").get()}.$versionCode"   // 1.6.120
+    versionCode = rootProject.extra["appBuild"] as Int
+    versionName = rootProject.extra["appVersion"] as String   // 1.6.120 (build.gradle.kts)
     ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
     externalNativeBuild { cmake { arguments += "-DSCRAPER_DRIVER=${providers.gradleProperty("scraper.driver").get()}" } }
   }

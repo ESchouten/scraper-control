@@ -1,5 +1,4 @@
-// Scraper Control design system (same values as the Flutter app's theme.dart and the iOS app's
-// Theme.swift). Brand red for brand surfaces and the one primary action on a screen; the rest
+// Scraper Control design system (the same values as the iOS app's Theme.swift). Brand red for brand surfaces and the one primary action on a screen; the rest
 // is warm neutral. Status is never colour alone: always an icon and a word as well.
 package nl.eschouten.scraper.app
 

@@ -1,7 +1,7 @@
 // The shared user scenarios (scenarios/scenarios.json), run against the Compose app on the
 // desktop with the demo robot. The iOS app runs the same list in XCUITest with the same test
-// ids; scenarios/check.py makes sure neither misses one. Screenshots go to
-// composeApp/build/screenshots/<lang>/ for the side-by-side page.
+// ids; ScenarioCoverageTest makes sure neither misses one. Screenshots go to
+// composeApp/build/screenshots/<lang>/.
 @file:OptIn(ExperimentalTestApi::class)
 
 package nl.eschouten.scraper.app

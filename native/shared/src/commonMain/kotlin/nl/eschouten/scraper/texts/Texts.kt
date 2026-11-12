@@ -1,5 +1,5 @@
 // Every word the apps show, in Dutch and English: ONE source for Compose (Android, desktop)
-// and SwiftUI (iOS), so both apps always say the same. Ported from app/lib/l10n.dart.
+// and SwiftUI (iOS), so both apps always say the same.
 // Each text is t(nl, en): a missing translation does not compile.
 // The apps follow the phone's language (Dutch phone: Dutch, anything else: English) unless
 // a language is chosen in Settings. Use: tr.cancel, tr.routeStarted(title).
@@ -26,11 +26,6 @@ internal expect fun systemLanguage(): String
 class Tr(val code: String) {
   private val isEn get() = code == "en"
   private fun t(nl: String, en: String) = if (isEn) en else nl
-  
-  
-  
-  
-  
 
   // ---- common -------------------------------------------------------------------
   val cancel: String get() = t("Annuleren", "Cancel")
@@ -55,7 +50,6 @@ class Tr(val code: String) {
   val paused: String get() = t("Pauze", "Paused")
   val busy: String get() = t("Bezig", "Busy")
   val busyDots: String get() = t("Bezig...", "Busy...")
-  val connect: String get() = t("Verbinden", "Connect")
   val connecting: String get() = t("Verbinden", "Connecting")
   val connected: String get() = t("Verbonden", "Connected")
   val notConnected: String get() = t("Niet verbonden", "Not connected")
@@ -72,7 +66,7 @@ class Tr(val code: String) {
   val battery: String get() = t("Accu", "Battery")
   val exampleBarn: String get() = t("Bijv. Stal 2", "E.g. Barn 2")
   fun routeLetter(r: String): String = "Route $r"
-  // ---- dates (theme.dart) ---------------------------------------------------------
+  // ---- dates ----------------------------------------------------------------------
   val months: List<String> get() = if (isEn)
       listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
     else

@@ -3,14 +3,9 @@
 // lives here, so both apps behave the same; they only draw [RunSheetView].
 package nl.eschouten.scraper.ui
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.launch
 import nl.eschouten.scraper.app.Cancellable
-import nl.eschouten.scraper.app.immediateOrDefault
 import nl.eschouten.scraper.app.ControllerState
 import nl.eschouten.scraper.app.LinkState
 import nl.eschouten.scraper.app.Outcome
@@ -73,22 +68,14 @@ data class RunSheetView(
   val actions: List<Action> = emptyList(),
 )
 
-class RunFlow(
-  private val controller: RobotController,
-  val route: String,
-  private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
-) {
-  /** Swift (no default arguments there). */
-  constructor(controller: RobotController, route: String) : this(controller, route, newScope())
+class RunFlow(private val controller: RobotController, val route: String) {
+  private val scope = newScope()
 
   private val _state = MutableStateFlow(RunFlowState())
   val state: StateFlow<RunFlowState> = _state
 
   /** Swift: observe without Flow. */
-  fun watch(onChange: (RunFlowState) -> Unit): Cancellable {
-    val job = scope.launch(Dispatchers.Main.immediateOrDefault()) { _state.collect { onChange(it) } }
-    return Cancellable { job.cancel() }
-  }
+  fun watch(onChange: (RunFlowState) -> Unit): Cancellable = _state.watchIn(scope, onChange)
 
   private fun intent(st: RunFlowState) = RunIntent(route, st.dryRun, st.planningBefore)
 

@@ -1,5 +1,5 @@
 {
-  "about": "One list of user scenarios that BOTH apps must pass with the same test ids. Compose: composeApp/src/jvmTest/.../ScenarioTest.kt, a test function per id. iOS: iosApp/UITests/ScenarioTests.swift, func test_<id>(). Both start the demo robot with the same words (shared app/AppStart.kt). scenarios/check.py fails CI when an app misses one.",
+  "about": "One list of user scenarios that BOTH apps must pass with the same test ids. Compose: composeApp/src/jvmTest/.../ScenarioTest.kt, a test function per id. iOS: iosApp/UITests/ScenarioTests.swift, func test_<id>(). Both start the demo robot with the same words (shared app/AppStart.kt). composeApp's ScenarioCoverageTest fails when an app misses one.",
   "scenarios": [
     {"id": "onboarding_complete", "demo": "", "steps": "welcome > get started > scan finds 2 demo robots > pick the first > next > PIN 4321 > test connection > connected > done > home"},
     {"id": "onboarding_wrong_pin", "demo": "", "steps": "welcome > get started > pick the first robot > next > PIN 0000 > test connection > 'that failed' with the PIN help"},
@@ -14,13 +14,5 @@
     {"id": "read_routes", "demo": "setup=done", "steps": "home > edit > read routes > route C shows its sub-routes '1 2 3' (read from the robot's route menu, nothing started)"},
     {"id": "add_robot", "demo": "setup=done", "steps": "settings > add robot > scan finds the second demo robot > name 'Barn 2', PIN 4321 > add > home shows 'Barn 2' and '2 robots'"},
     {"id": "logbook", "demo": "setup=done", "steps": "dry run route A > settings > logbook shows it > clear > empty"}
-  ],
-  "screenshots": [
-    {"id": "01-welcome", "demo": ""},
-    {"id": "02-home", "demo": "setup=done names=A:Voergang,B:Stal+2"},
-    {"id": "03-run-sheet", "demo": "setup=done names=A:Voergang"},
-    {"id": "04-run-done", "demo": "setup=done names=A:Voergang"},
-    {"id": "05-panel", "demo": "setup=done"},
-    {"id": "06-settings", "demo": "setup=done"}
   ]
 }

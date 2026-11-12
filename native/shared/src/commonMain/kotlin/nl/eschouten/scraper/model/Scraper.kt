@@ -13,7 +13,6 @@ import nl.eschouten.scraper.app.RobotProfile
 /** What a scraper type supports. The apps show only what is supported. */
 enum class Capability {
   Routes, // start a stored route by its slot (A, B, ...)
-  DryRun, // walk through a start without driving
   Planning, // switch the time planning (automatic rides) on/off
   Battery, // reports a battery voltage
   NextRun, // reports the next planned ride
@@ -66,11 +65,7 @@ abstract class ScraperModel {
   abstract val capabilities: Set<Capability>
   fun can(c: Capability) = c in capabilities
 
-  /** Route slots the robot has, e.g. A, B, C, D. */
-  abstract val routeSlots: List<String>
-
   // ---- connecting ----
-  abstract val usesPin: Boolean
   abstract val pinHelp: String // under the PIN field
   abstract val reachHelp: String // when the robot cannot be reached
   abstract val scanHelp: String // when the scan finds nothing

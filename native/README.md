@@ -35,9 +35,8 @@ scenarios/   the user scenarios both apps must pass, and the checks around them
 - **One scenario list**, `scenarios/scenarios.json`. The Compose app runs it in
   `composeApp/src/jvmTest/.../ScenarioTest.kt`, the iOS app in
   `iosApp/UITests/ScenarioTests.swift`, with the same test ids on the same elements and the
-  same demo robot. `scenarios/check.py` (in CI) fails when either app misses a scenario.
-- **Screenshots** of the same screens in both languages from both test suites;
-  `scenarios/side_by_side.py` puts them next to each other.
+  same demo robot. `ScenarioCoverageTest` (composeApp) fails when either app misses one.
+- **Screenshots** of the same screens in both languages from both test suites.
 - A feature is done when it is in both apps and in the scenario list.
 
 ## Build and run
@@ -52,9 +51,8 @@ python3 ../tools/secrets.py               # optional: the build secrets (a real 
 ./gradlew :composeApp:run --args="--demo" # desktop app with the demo robot
 ./gradlew :composeApp:jvmTest             # scenarios + screenshots (build/screenshots/<lang>)
 ./gradlew :androidApp:assembleDebug       # Android APK
-cd iosApp && xcodegen && open ScraperControl.xcodeproj
-xcodebuild test -project iosApp/ScraperControl.xcodeproj -scheme ScraperControl \
-  -destination 'platform=iOS Simulator,name=iPhone 15 Pro' TEST_RUNNER_SCREENSHOT_DIR=/tmp/shots
+cd iosApp && xcodegen && open ScraperControl.xcodeproj   # iOS app
+iosApp/run-ui-tests.sh                    # iOS scenarios + screenshots (/tmp/shots/<lang>)
 ```
 
 ## The demo robot

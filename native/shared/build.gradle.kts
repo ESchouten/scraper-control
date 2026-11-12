@@ -5,9 +5,7 @@ plugins {
   id("org.jetbrains.kotlin.plugin.serialization")
 }
 
-val hasAndroid = listOf("ANDROID_HOME", "ANDROID_SDK_ROOT").any { v ->
-  System.getenv(v)?.let { File(it).isDirectory } == true
-}
+val hasAndroid = findProject(":androidApp") != null   // settings.gradle.kts: an Android SDK is there
 // The robot driver (gradle.properties scraper.driver): drivers/<name>/src, built with the C API in core/
 val driver = providers.gradleProperty("scraper.driver").get()
 val driverDir = rootDir.resolve("../drivers/$driver")
@@ -16,15 +14,12 @@ val apiDir = rootDir.resolve("../core")
 val secretsFile = rootDir.resolve("../drivers/secrets.h") // tools/secrets.py; optional
 
 // --- the app's version as a constant (AppVersion), the same for every app ---
-val commitCount = providers.exec { commandLine("git", "rev-list", "--count", "HEAD"); isIgnoreExitValue = true }
-  .standardOutput.asText.map { (it.trim().toIntOrNull() ?: 0) + (providers.gradleProperty("scraper.buildBase").orNull?.toIntOrNull() ?: 0) }
-val appVersion = commitCount.map { "${providers.gradleProperty("scraper.version").get()}.$it" }   // 1.6.120
+val appVersion = rootProject.extra["appVersion"] as String   // 1.6.120 (build.gradle.kts)
+val appBuild = rootProject.extra["appBuild"] as Int
 val versionDir = layout.buildDirectory.dir("generated/version/kotlin")
 val generateVersion by tasks.registering {
-  val name = appVersion
-  val build = commitCount
-  inputs.property("version", name)
-  inputs.property("build", build)
+  inputs.property("version", appVersion)
+  inputs.property("build", appBuild)
   outputs.dir(versionDir)
   doLast {
     val f = versionDir.get().asFile.resolve("nl/eschouten/scraper/AppVersion.kt")
@@ -32,7 +27,7 @@ val generateVersion by tasks.registering {
     f.writeText(
       "// Generated from gradle.properties (scraper.version) + the build number. Do not edit.\n" +
         "package nl.eschouten.scraper\n\n" +
-        "object AppVersion {\n  const val NAME = \"${name.get()}\"\n  const val BUILD = ${build.get()}\n}\n",
+        "object AppVersion {\n  const val NAME = \"$appVersion\"\n  const val BUILD = $appBuild\n}\n",
     )
   }
 }

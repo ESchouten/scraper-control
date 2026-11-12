@@ -110,7 +110,7 @@ struct OnboardingView: View {
         } else {
           HStack(spacing: Space.m) {
             Button(v.later.label) { Task { try? await flow.finish() } }.fontWeight(.bold).disabled(!v.later.enabled).testId(v.later.testId)
-            ActionButton(a: v.test.doCopy(label: v.test.label, action: v.test.action, testId: v.test.testId, primary: true, enabled: v.test.enabled)) {
+            ActionButton(a: v.test) {
               Task { try? await flow.test() }
             }
           }

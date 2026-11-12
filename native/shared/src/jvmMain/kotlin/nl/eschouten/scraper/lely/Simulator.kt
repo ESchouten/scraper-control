@@ -29,15 +29,6 @@ object Simulator {
     return LinkProvider({ id -> SimulatorLink(s, args, id, frameDelayMs) }, robots, scanDelayMs)
   }
 
-  /** Use the simulator for every robot of this type. */
-  fun install(script: String, args: List<String> = envArgs()) {
-    LelyDiscovery.linkProvider = provider(script, args)
-  }
-
-  fun uninstall() {
-    LelyDiscovery.linkProvider = null
-  }
-
   private fun envArgs() = (System.getenv("SCRAPER_SIMULATOR_ARGS") ?: "").split(' ').filter { it.isNotEmpty() }
 }
 

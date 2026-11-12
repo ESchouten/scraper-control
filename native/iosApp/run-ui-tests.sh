@@ -17,7 +17,7 @@ while [ $# -gt 0 ]; do
   esac
   shift
 done
-export JAVA_HOME=${JAVA_HOME:-$(/usr/libexec/java_home -v 21)}
+export JAVA_HOME=${JAVA_HOME:-$(/usr/libexec/java_home -v 17+)}
 UDID=$(xcrun simctl list devices available | grep -m1 "    $DEVICE (" | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')
 [ -z "$UDID" ] && { echo "no simulator '$DEVICE'"; exit 2; }
 xcrun simctl boot $UDID 2>/dev/null; xcrun simctl bootstatus $UDID -b >/dev/null

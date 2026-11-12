@@ -7,14 +7,9 @@ package nl.eschouten.scraper.lely
 import nl.eschouten.scraper.core.*
 import nl.eschouten.scraper.link.*
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.launch
 import nl.eschouten.scraper.app.Cancellable
-import nl.eschouten.scraper.app.immediateOrDefault
 import nl.eschouten.scraper.app.ControllerState
 import nl.eschouten.scraper.app.Outcome
 import nl.eschouten.scraper.app.RobotController
@@ -22,22 +17,17 @@ import nl.eschouten.scraper.texts.tr
 import nl.eschouten.scraper.ui.Action
 import nl.eschouten.scraper.ui.ActionKind
 import nl.eschouten.scraper.ui.newScope
+import nl.eschouten.scraper.ui.watchIn
 
 data class PanelState(val held: Boolean = false, val error: String? = null, val resume: Boolean = false)
 
-class PanelFlow(
-  private val controller: RobotController,
-  private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
-) {
-  constructor(controller: RobotController) : this(controller, newScope())
+class PanelFlow(private val controller: RobotController) {
+  private val scope = newScope()
 
   private val _state = MutableStateFlow(PanelState())
   val state: StateFlow<PanelState> = _state
 
-  fun watch(onChange: (PanelState) -> Unit): Cancellable {
-    val job = scope.launch(Dispatchers.Main.immediateOrDefault()) { _state.collect { onChange(it) } }
-    return Cancellable { job.cancel() }
-  }
+  fun watch(onChange: (PanelState) -> Unit): Cancellable = _state.watchIn(scope, onChange)
 
   /** The connect button. */
   suspend fun connect() {

@@ -1,8 +1,8 @@
 // The shared user scenarios (scenarios/scenarios.json), run against the SwiftUI app with the
 // demo robot. The Compose app runs the same list (composeApp/src/jvmTest/.../ScenarioTest.kt)
-// with the same test ids; scenarios/check.py makes sure neither misses one. Texts come from
-// the same shared module (Shared.framework), so both check the same words.
-// Screenshots: set TEST_RUNNER_SCREENSHOT_DIR (xcodebuild passes it on as SCREENSHOT_DIR).
+// with the same test ids; composeApp's ScenarioCoverageTest makes sure neither misses one.
+// Texts come from the same shared module (Shared.framework), so both check the same words.
+// Screenshots are attachments; run-ui-tests.sh exports them from the test result.
 import Shared
 import XCTest
 
@@ -96,11 +96,6 @@ final class ScenarioTests: XCTestCase {
     a.name = "\(lang)-\(id)"
     a.lifetime = .keepAlways
     add(a)
-    if let dir = ProcessInfo.processInfo.environment["SCREENSHOT_DIR"] {
-      let d = URL(fileURLWithPath: dir).appendingPathComponent(lang)
-      try? FileManager.default.createDirectory(at: d, withIntermediateDirectories: true)
-      try? png.write(to: d.appendingPathComponent("\(id).png"))
-    }
   }
 
   private func onboard(pin: String) {

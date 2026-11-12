@@ -4,15 +4,10 @@ package nl.eschouten.scraper.ui
 
 import kotlinx.coroutines.CoroutineScope
 import nl.eschouten.scraper.AppVersion
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.launch
 import nl.eschouten.scraper.app.Cancellable
-import nl.eschouten.scraper.app.immediateOrDefault
 import nl.eschouten.scraper.app.ControllerState
-import nl.eschouten.scraper.app.RobotController
 import nl.eschouten.scraper.app.RobotProfile
 import nl.eschouten.scraper.app.Settings
 import nl.eschouten.scraper.model.Capability
@@ -90,7 +85,7 @@ fun settingsScreen(s: ControllerState, now: Long, platform: Platform): SettingsS
     ),
   )
   val widgets = if (platform == Platform.Desktop) null else Section(
-    "Widgets",
+    tr.widgets,
     listOf(Row(RowId.WIDGETS, Glyph.Widgets, tr.routesOnHome, if (platform == Platform.Ios) tr.widgetHelpIos(APP_NAME) else tr.widgetHelpAndroid(APP_NAME), enabled = false)),
   )
   val language = Section(tr.language, listOf(Row(RowId.LANGUAGE, Glyph.Translate, tr.language, languageName(s.language))))
@@ -130,7 +125,7 @@ fun robotSettingsScreen(s: ControllerState, uid: String): RobotSettingsScreen? {
     listOf(
       Row(RowId.NAME, Glyph.Badge, tr.name, p.displayName),
       Row(
-        RowId.DEVICE, Glyph.Bluetooth, "Bluetooth",
+        RowId.DEVICE, Glyph.Bluetooth, tr.bluetooth,
         if (p.robotId == null) tr.searchedAutomatically else "${p.robotName.ifEmpty { p.type.fullName }} · ${p.robotId}",
         enabled = !s.isBusy,
       ),
@@ -208,18 +203,14 @@ class ScanFlow(
   selectedId: String? = null,
   initialName: String = "",
   private val platform: Platform,
-  private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+  /** Shared with the onboarding / add-robot flow that owns this scan. */
+  private val scope: CoroutineScope = newScope(),
 ) {
-  constructor(model: ScraperModel, exclude: Set<String?>, selectedId: String?, initialName: String, platform: Platform) :
-    this(model, exclude, selectedId, initialName, platform, newScope())
 
   private val _state = MutableStateFlow(ScanState(selectedId = selectedId, name = initialName))
   val state: StateFlow<ScanState> = _state
 
-  fun watch(onChange: (ScanState) -> Unit): Cancellable {
-    val job = scope.launch(Dispatchers.Main.immediateOrDefault()) { _state.collect { onChange(it) } }
-    return Cancellable { job.cancel() }
-  }
+  fun watch(onChange: (ScanState) -> Unit): Cancellable = _state.watchIn(scope, onChange)
 
   fun setName(n: String) {
     _state.value = _state.value.copy(name = n)
