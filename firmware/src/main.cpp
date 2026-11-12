@@ -1155,8 +1155,8 @@ static void autoUpdateTick() {
 // presses a key (no finish(): that can press keys) and never answers a question. Not while
 // someone uses the M5 (2 minutes after a press), not while a planning is still owed to the
 // robot, not while the wifi looks for an update. Robot out of reach, or another app is
-// connected (the robot takes one connection at a time): try again in an hour.
-static const uint32_t kSyncEveryMs = 15UL * 60 * 1000, kSyncRetryMs = 60UL * 60 * 1000;
+// connected (the robot takes one connection at a time): simply the next round, 15 min later.
+static const uint32_t kSyncEveryMs = 15UL * 60 * 1000;
 static uint32_t nextSync = 15000;   // the first read soon after starting
 
 static bool readRobotQuietly() {
@@ -1187,9 +1187,9 @@ static void syncTick() {
   }
   syncing = true;
   idle();   // a small sync mark where the age is
-  bool ok = readRobotQuietly();
+  readRobotQuietly();
   syncing = false;
-  nextSync = millis() + (ok ? kSyncEveryMs : kSyncRetryMs);
+  nextSync = millis() + kSyncEveryMs;
   idle();
 }
 
