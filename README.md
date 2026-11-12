@@ -12,9 +12,7 @@ Python script.
   stop is always answered by a person; the schedule is left the way it was found.
 
 <p>
-  <img src="docs/screenshots/app-home.png" width="200" alt="The app: routes">
-  <img src="docs/screenshots/app-widget.png" width="290" alt="Home-screen widget">
-  <img src="docs/screenshots/m5-main.png" width="300" alt="The M5Stack buttons">
+  <img src="docs/screenshots/screenshots.png" width="620" alt="The app with the routes, the home-screen widget and the M5Stack buttons">
 </p>
 
 ## Supported robots
