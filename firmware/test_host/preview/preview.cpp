@@ -42,7 +42,7 @@ static void all() {
   String rb = String(tx->route) + " B";
   haveSeen = false;
   idle(); shot("1-home");
-  seen = Status(); seen.planning = 1; seen.nextRide = "21:00"; seen.clock = "08:00:00"; seen.batteryMv = 25400;
+  seen = Status(); seen.planning = 1; seen.nextRide = "21:00"; seen.clock = "08:00:00"; seen.batteryMv = 13500;
   seenAt = now; haveSeen = true; now += 12 * 60000;
   idle(); shot("1b-home-seen");
   idle(); ui::fillHold(0, 900); shot("1c-home-holding");   // left held 0.9 s: filling up
@@ -50,13 +50,13 @@ static void all() {
   haveSeen = false;
   drawProgress(rb, nextStep(Kind::Route, int(Step::ScreenReady), true), 3, 8); shot("2-busy");
   Status st;
-  st.planning = 1; st.nextRide = "21:00"; st.batteryMv = 25400;
+  st.planning = 1; st.nextRide = "21:00"; st.batteryMv = 13500;
   drawResult(rb, true, rb + " " + tx->started, st, ""); shot("3-done");
   bool en = tx == &kEn;
   drawResult(rb, false, en ? "Robot is busy" : "Robot is bezig", st,
              String(en ? "not on home screen or route menu; nothing pressed" : "niet op beginscherm of routemenu; niets gedrukt")
              + "\nROUTE->TIJDPAD\nRoute: B"); shot("4-error");
-  st = Status(); st.planning = 0; st.nextRide = "21:00"; st.route = ""; st.action = en ? "Charging" : "Laden"; st.batteryMv = 25600;
+  st = Status(); st.planning = 0; st.nextRide = "21:00"; st.route = ""; st.action = en ? "Charging" : "Laden"; st.batteryMv = 13600;
   drawResult("Status", true, tx->robotStatus, st, ""); shot("5-status");
   ManualState m; m.left = 1; m.right = 0; m.forward = 1;
   drawManual(m, false); shot("7-manual");
