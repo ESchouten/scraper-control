@@ -1,4 +1,4 @@
-// Host test for the update manifest (firmware.txt): parsing, what is signed, newer-only.
+// Host test for the update manifest (update.txt): one block per board, what is signed, newer-only.
 // The same text as firmware/sign_release.py writes; test_cpp.py checks both agree.
 #include <cassert>
 #include <cstdio>
@@ -8,24 +8,35 @@
 #include "../src/Manifest.h"
 
 int main(int argc, char** argv) {
-  if (argc > 1) {   // print the signed message of a manifest on stdin (for test_cpp.py)
+  if (argc > 1) {   // print the signed message of a board's block in a manifest on stdin (test_firmware.py)
     std::string all, line;
     while (std::getline(std::cin, line)) all += line + "\n";
-    std::cout << signedMessage(parseManifest(all)) << "\n";
+    std::cout << signedMessage(parseManifest(all, argv[1])) << "\n";
     return 0;
   }
   std::string text =
-      "board=m5stack-core\r\nversion=0.7.0\nbuild=412\nsize=2145195\n"
+      "# Scraper Control updates\n"
+      "[other-board]\nfile=other.bin\nversion=9.9.9\nbuild=999\nsize=10\n"
+      "sha256=0000000000000000000000000000000000000000000000000000000000000000\nsig=30\n"
+      "[m5stack-core]\r\nfile=scraper-control-m5stack-core-0.7.0.bin\r\nversion=0.7.0\nbuild=412\nsize=2145195\n"
       "sha256=c34ff75f3ac6de788e2984b5f1cd9be223f472fcb41e75bf3d2868940177a850\nsig=3045022100a9\n";
-  Manifest m = parseManifest(text);
+  Manifest m = parseManifest(text, "m5stack-core");
   assert(m.complete());
   assert(m.board == "m5stack-core" && m.version == "0.7.0" && m.build == 412 && m.size == 2145195);
+  assert(m.file == "scraper-control-m5stack-core-0.7.0.bin");   // its own block, not the other board's
   assert(signedMessage(m) == "scraper-knop|m5stack-core|0.7.0|412|2145195|c34ff75f3ac6de788e2984b5f1cd9be223f472fcb41e75bf3d2868940177a850");
   assert(isUpdate(m, "m5stack-core", 411));
   assert(!isUpdate(m, "m5stack-core", 412));     // same build: nothing to do
   assert(!isUpdate(m, "m5stack-core2", 1));      // other board
-  Manifest broken = parseManifest("board=m5stack-core\nbuild=500\n");
+  assert(!parseManifest(text, "m5stack-core2").complete());   // no block for this board: no update
+  Manifest broken = parseManifest("[m5stack-core]\nbuild=500\n", "m5stack-core");
   assert(!broken.complete() && !isUpdate(broken, "m5stack-core", 1));
+  assert(!parseManifest("board=m5stack-core\nfile=a.bin\nversion=1\nbuild=5\nsize=1\nsig=30\n", "m5stack-core").complete());   // old firmware.txt: not read
+  for (const char* bad : {"../x.bin", "a/b.bin", ".hidden", "x.bin?y=1", "https:", ""}) {
+    Manifest f = m;
+    f.file = bad;
+    assert(!f.complete());   // only a plain file name next to update.txt
+  }
   std::vector<uint8_t> b;
   assert(fromHex("30450a", b) && b.size() == 3 && b[0] == 0x30 && b[2] == 0x0a);
   assert(!fromHex("3g", b) && !fromHex("123", b));

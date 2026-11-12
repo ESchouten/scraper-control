@@ -25,20 +25,30 @@ def editors_and_manifest():
     subprocess.check_call(["g++", "-std=c++17", "-Wall",
                            os.path.join(ROOT, "firmware", "test_host", "manifest_test.cpp"), "-o", exe])
     subprocess.check_call([exe])
-    # the M5 and the release signer agree on what is signed
+    # the M5 and the release signer agree on what is signed, for every board in update.txt
     fw = os.path.join(ROOT, "firmware")
+    sign = os.path.join(fw, "sign_release.py")
     with tempfile.TemporaryDirectory() as tmp:
-        key, binf, man = os.path.join(tmp, "k.pem"), os.path.join(tmp, "f.bin"), os.path.join(tmp, "f.txt")
+        key, man = os.path.join(tmp, "k.pem"), os.path.join(tmp, "update.txt")
         subprocess.check_call(["openssl", "ecparam", "-name", "prime256v1", "-genkey", "-noout", "-out", key])
-        with open(binf, "wb") as f:
-            f.write(os.urandom(3000))
-        text = subprocess.check_output([sys.executable, os.path.join(fw, "sign_release.py"), binf, "--key", key,
-                                        "--version", "0.0.1", "--build", "7"], text=True)
+        text = "# test\n"
+        for board in ("m5stack-core", "other-board"):
+            binf = os.path.join(tmp, f"scraper-control-{board}-0.0.1.bin")
+            with open(binf, "wb") as f:
+                f.write(os.urandom(3000))
+            text += subprocess.check_output([sys.executable, sign, binf, "--key", key, "--board", board,
+                                             "--version", "0.0.1", "--build", "7"], text=True)
         with open(man, "w") as f:
             f.write(text)
-        py = subprocess.check_output([sys.executable, os.path.join(fw, "sign_release.py"), "--message", man], text=True)
-        cc = subprocess.run([exe, "-"], input=text, capture_output=True, text=True, check=True).stdout
+        check("manifest: names its file", "file=scraper-control-m5stack-core-0.0.1.bin" in text, text)
+        py = subprocess.check_output([sys.executable, sign, "--message", man], text=True)
+        cc = "".join(subprocess.run([exe, b], input=text, capture_output=True, text=True, check=True).stdout
+                     for b in ("m5stack-core", "other-board"))
         check("manifest: signer and M5 sign the same text", py == cc, py + cc)
+        legacy = subprocess.check_output([sys.executable, sign, binf, "--key", key, "--legacy",
+                                          "--version", "0.0.1", "--build", "7"], text=True)
+        check("manifest: legacy firmware.txt for 1.6.0 and older", legacy.startswith("board=m5stack-core\n")
+              and "file=" not in legacy and "[" not in legacy, legacy)
     exe = BIN + "_text"
     subprocess.check_call(["g++", "-std=c++17", "-Wall",
                            os.path.join(ROOT, "firmware", "test_host", "text_editor_test.cpp"), "-o", exe])
