@@ -44,7 +44,9 @@ internal actual suspend fun findClassicRobots(spec: LinkSpec.BtSerial): List<Fou
     }
   }
   val filter = IntentFilter(BluetoothDevice.ACTION_FOUND)
-  if (Build.VERSION.SDK_INT >= 33) c.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED) else c.registerReceiver(receiver, filter)
+  // exported: the Bluetooth service that sends ACTION_FOUND is not the system itself, and a
+  // receiver that is not exported would never hear it (only the system can send this action)
+  if (Build.VERSION.SDK_INT >= 33) c.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED) else c.registerReceiver(receiver, filter)
   try {
     adapter.startDiscovery()
     delay(DISCOVERY_MS)
