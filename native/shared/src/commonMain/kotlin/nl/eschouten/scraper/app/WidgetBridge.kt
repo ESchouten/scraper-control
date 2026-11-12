@@ -1,7 +1,9 @@
 // The home-screen widgets (Android AppWidget, iOS WidgetKit) on the shared module: what they
-// show and what a tap does. The platform only draws [WidgetBar] / [WidgetTile] and calls [tap].
+// show and what a tap does. The platform only draws [WidgetBar] / [WidgetTile] and calls [tap] /
+// [setPlanning].
 //
-//   bar   routes A-D of one robot, plus its schedule (as last seen by the app) or last result
+//   bar   routes A-D of one robot, plus its schedule (as last seen by the app, a tap switches
+//         it) or last result
 //   tile  one route of one robot, plus its last result
 //
 // Kept in the app's store (iOS: the App Group, so the widget extension reads it too):
@@ -9,6 +11,7 @@
 //   w.active          uid of the robot chosen in the app (default for new widgets)
 //   w.status.<uid>    last result line for that robot ("07:18  Voergang gestart")
 //   w.route.<uid>.<A> last result for that route, short ("Gestart 07:18")
+//   w.busy.<uid>      when a widget tap for that robot started (epoch ms): a second tap does nothing
 //   w.robot.<id>, w.route.<id>   which robot / route a placed widget shows (Android)
 package nl.eschouten.scraper.app
 
@@ -44,9 +47,10 @@ import nl.eschouten.scraper.ui.APP_NAME
 
 data class WidgetButton(val route: String, val title: String)
 
-/** [status]: the schedule when known, else the last result. [scheduleOn]: null when the
- *  status line is not the schedule (no dot shown). [changesAt]: when [status] changes by itself
- *  (the next run has passed: its time is dropped), epoch ms; null = not by itself. */
+/** [status]: what a running tap does, else the schedule when known, else the last result.
+ *  [scheduleOn]: the schedule switch, null when not known (no switch shown). [changesAt]: when
+ *  [status] changes by itself (the next run has passed: its time is dropped), epoch ms; null =
+ *  not by itself. */
 data class WidgetBar(
   val title: String,
   val robotUid: String?,
@@ -65,6 +69,9 @@ data class WidgetNotice(val title: String, val body: String)
 data class WidgetChoice(val label: String, val robotUid: String, val route: String?)
 
 object WidgetBridge {
+  /** A widget tap counts as running this long at most (the app may have been stopped halfway). */
+  private const val BUSY_MS = 90_000L
+
   /** Keep the widgets in step with the app: robots, names, routes and run results. [refresh]
    *  redraws the platform's widgets. */
   fun install(controller: RobotController, store: Store, refresh: () -> Unit) {
@@ -102,10 +109,14 @@ object WidgetBridge {
   }
 
   fun report(store: Store, robotUid: String, route: String, line: String, short: String, now: Long = Clock.System.now().toEpochMilliseconds()) {
-    val t = Fmt.hhmm(now)
-    store.putString("w.status.$robotUid", "$t  $line")
-    store.putString("w.route.$robotUid.$route", if (short.isEmpty()) "" else "$short $t")
+    line(store, robotUid, line, now)
+    store.putString("w.route.$robotUid.$route", if (short.isEmpty()) "" else "$short ${Fmt.hhmm(now)}")
   }
+
+  private fun line(store: Store, robotUid: String, line: String, now: Long = Clock.System.now().toEpochMilliseconds()) =
+    store.putString("w.status.$robotUid", "${Fmt.hhmm(now)}  $line")
+
+  private fun busySince(store: Store, robotUid: String) = store.getString("w.busy.$robotUid")?.toLongOrNull() ?: 0L
 
   fun bar(store: Store, robotUid: String?): WidgetBar = bar(store, robotUid, Clock.System.now().toEpochMilliseconds())
 
@@ -116,12 +127,17 @@ object WidgetBridge {
     val planning = r?.planning
     val runAt = if (planning == true) nextRunAt(r.seen, r.next) else null
     val next = if (runAt != null && now >= runAt) "" else r?.next.orEmpty()
+    val busy = r != null && now - busySince(store, r.uid) < BUSY_MS
+    val last = r?.let { store.getString("w.status.${it.uid}") }
     return WidgetBar(
       r?.name ?: APP_NAME,
       r?.uid,
       r?.routes?.map { WidgetButton(it.l, it.t) } ?: Settings.allRoutes.map { WidgetButton(it, tr.routeLetter(it)) },
-      if (planning != null) tr.widgetSchedule(planning, next)
-      else r?.let { store.getString("w.status.${it.uid}") } ?: tr.tapRouteToStart,
+      when {
+        busy && last != null -> last
+        planning != null -> tr.widgetSchedule(planning, next)
+        else -> last ?: tr.tapRouteToStart
+      },
       planning,
       runAt?.takeIf { now < it },
     )
@@ -166,6 +182,11 @@ object WidgetBridge {
     return WidgetNotice(tr.widgetFailedTitle(title), out?.message ?: tr.widgetTimedOut)
   }
 
+  /** The notification for a schedule tap that did not work ([out] null = it took too long). */
+  fun planningNotice(out: Outcome?): WidgetNotice? =
+    if (out != null && (out.ok || out.message.isEmpty())) null
+    else WidgetNotice(tr.planningChangeFailed, out?.message ?: tr.noConnection)
+
   /** What can be chosen when a widget is placed (Android); empty: set up the app first. */
   fun choices(store: Store, tile: Boolean): List<WidgetChoice> {
     val all = robots(store)
@@ -182,34 +203,60 @@ object WidgetBridge {
   suspend fun tap(store: Store, robotUid: String?, route: String, refresh: () -> Unit): Outcome {
     val letter = route.uppercase()
     if (letter !in Settings.allRoutes) return Outcome(false, "")
+    return run(store, robotUid, refresh) { r, c ->
+      val title = r.routeTitle(letter)
+      report(store, r.uid, letter, tr.widgetConnecting(title), tr.busyDots)
+      refresh()
+      val out = c.startRoute(letter)
+      report(
+        store, r.uid, letter,
+        when {
+          out.stopped -> tr.routeStoppedTitle
+          out.ok -> tr.routeStarted(title)
+          else -> "$title: ${out.message}"
+        },
+        when {
+          out.stopped -> tr.stoppedShort
+          out.ok -> tr.started
+          out.problem == Problem.BluetoothOff -> tr.bluetoothOffShort
+          else -> tr.failed
+        },
+      )
+      out
+    }
+  }
+
+  /** A tap on the bar's schedule switch: switch it [on], the opposite of what the widget
+   *  showed (never "whatever the robot has"). The same connection and safety rules as a route:
+   *  a robot that is not on its home screen or route menu gets nothing pressed. */
+  suspend fun setPlanning(store: Store, robotUid: String?, on: Boolean, refresh: () -> Unit): Outcome =
+    run(store, robotUid, refresh) { r, c ->
+      line(store, r.uid, tr.widgetConnecting(tr.widgetSchedule(on, "")))
+      refresh()
+      c.setPlanning(on).also { if (!it.ok) line(store, r.uid, "${tr.planningChangeFailed}: ${it.message}") }
+    }
+
+  /** One widget tap on its own connection to the robot [robotUid] (for this tap only: the app's
+   *  choice stays). Nothing when the robot was removed in the app or a tap for it still runs.
+   *  After: the schedule the robot showed (this controller does not publish). */
+  private suspend fun run(
+    store: Store, robotUid: String?, refresh: () -> Unit,
+    work: suspend (RobotProfile, RobotController) -> Outcome,
+  ): Outcome {
     val s = Settings.load(store)
     if (robotUid != null && !s.useOnly(robotUid)) return Outcome(false, "") // removed in the app
     val uid = s.robot.uid
-    val title = s.robot.routeTitle(letter)
-    report(store, uid, letter, tr.widgetConnecting(title), tr.busyDots)
-    refresh()
+    val now = Clock.System.now().toEpochMilliseconds()
+    if (now - busySince(store, uid) < BUSY_MS) return Outcome(false, "")
+    store.putString("w.busy.$uid", "$now")
     val c = RobotController(s, store, viaWidget = true)
-    val out = try {
-      c.startRoute(letter)
+    return try {
+      work(s.robot, c)
     } finally {
       c.dispose()
+      store.putString("w.busy.$uid", null)
+      publish(Settings.load(store), store)
+      refresh()
     }
-    report(
-      store, uid, letter,
-      when {
-        out.stopped -> tr.routeStoppedTitle
-        out.ok -> tr.routeStarted(title)
-        else -> "$title: ${out.message}"
-      },
-      when {
-        out.stopped -> tr.stoppedShort
-        out.ok -> tr.started
-        out.problem == Problem.BluetoothOff -> tr.bluetoothOffShort
-        else -> tr.failed
-      },
-    )
-    publish(Settings.load(store), store)   // the schedule the run saw (the tap's controller does not publish)
-    refresh()
-    return out
   }
 }

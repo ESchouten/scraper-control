@@ -21,6 +21,15 @@ private struct Mark: View {
   }
 }
 
+/// The schedule switch, small: green with the knob right when on.
+private struct ScheduleSwitch: View {
+  let on: Bool
+  var body: some View {
+    Capsule().fill(on ? C.ok : Color.secondary.opacity(0.45)).frame(width: 26, height: 15)
+      .overlay(Circle().fill(.white).frame(width: 11, height: 11).padding(2), alignment: on ? .trailing : .leading)
+  }
+}
+
 struct RobotEntity: AppEntity {
   let id: String
   let name: String
@@ -80,17 +89,28 @@ struct BarProvider: AppIntentTimelineProvider {
 
 struct BarView: View {
   let entry: BarEntry
+  private var status: some View { Text(entry.bar.status).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1) }
   var body: some View {
     VStack(alignment: .leading, spacing: 10) {
       HStack(spacing: 7) {
         Mark()
         Text(entry.bar.title).font(.system(size: 14, weight: .bold)).lineLimit(1)
         Spacer(minLength: 8)
+        // the schedule known: a chip with a switch, a tap switches it to the other state
         if let on = entry.bar.scheduleOn?.boolValue {
-          Circle().fill(on ? C.ok : Color.secondary)
-            .frame(width: 6, height: 6)
+          Button(intent: PlanningIntent(on: !on, robot: entry.bar.robotUid ?? "")) {
+            HStack(spacing: 6) {
+              status
+              ScheduleSwitch(on: on)
+            }
+            .padding(.leading, 9).padding(.trailing, 3).padding(.vertical, 3)
+            .background(Capsule().fill(tileBg))
+          }
+          .buttonStyle(.plain)
+          .accessibilityLabel(TextsKt.tr.widgetSwitchPlanning(on: !on))
+        } else {
+          status
         }
-        Text(entry.bar.status).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
       }
       HStack(spacing: 8) {
         ForEach(entry.bar.routes, id: \.route) { r in
