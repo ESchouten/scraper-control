@@ -28,6 +28,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import nl.eschouten.scraper.app.PrefsStore
 import nl.eschouten.scraper.app.Settings
+import nl.eschouten.scraper.app.WidgetBar
 import nl.eschouten.scraper.app.WidgetBridge
 import nl.eschouten.scraper.app.WidgetNotice
 import nl.eschouten.scraper.texts.tr
@@ -64,41 +65,47 @@ object WidgetViews {
         setOnClickPendingIntent(R.id.route_root, tap(c, widgetId * 10, t.robotUid) { putExtra("route", t.route) })
       }
     } else {
+      // the launcher draws the first lying down (the lowest it gets), the second upright (the highest)
       val b = WidgetBridge.bar(store, robotUid)
-      RemoteViews(c.packageName, if (oneRow(c, widgetId)) R.layout.widget_routes_row else R.layout.widget_routes).apply {
-        setTextViewText(R.id.title, b.title)
-        val shown = b.routes.associateBy { it.route }
-        tiles.forEach { (letter, t) ->
-          setViewVisibility(t.root, if (letter in shown) View.VISIBLE else View.GONE)
-          setOnClickPendingIntent(t.root, tap(c, widgetId * 10 + 1 + "ABCD".indexOf(letter), b.robotUid) { putExtra("route", letter) })
-          shown[letter]?.let {
-            setTextViewText(t.name, it.title)
-            setContentDescription(t.root, tr.startRoute(it.title))
-          }
-        }
-        setTextViewText(R.id.status, b.status)
-        // the schedule known: a chip with a switch, a tap switches it to the other state; else opens the app
-        val on = b.scheduleOn
-        setViewVisibility(R.id.schedule_switch, if (on == null) View.GONE else View.VISIBLE)
-        setInt(R.id.schedule, "setBackgroundResource", if (on == null) 0 else R.drawable.widget_chip)
-        if (on != null) {
-          setImageViewResource(R.id.schedule_switch, if (on) R.drawable.widget_switch_on else R.drawable.widget_switch_off)
-          setContentDescription(R.id.schedule, tr.widgetSwitchPlanning(!on))
-        }
-        setOnClickPendingIntent(
-          R.id.schedule,
-          if (on != null) tap(c, widgetId * 10 + 5, b.robotUid) { putExtra("on", !on) }
-          else PendingIntent.getActivity(c, widgetId, Intent(c, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT),
-        )
-      }
+      val size = AppWidgetManager.getInstance(c).getAppWidgetOptions(widgetId)
+      RemoteViews(
+        bar(c, widgetId, b, size.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT)),
+        bar(c, widgetId, b, size.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT)),
+      )
     }
   }
 
-  /** A tap for [WidgetTapReceiver]: a "route", or the schedule switched "on" (true/false). */
-  /** Placed one cell row high (the launcher's smallest height for it, in dp): the compact layout. */
-  private fun oneRow(c: Context, widgetId: Int) =
-    AppWidgetManager.getInstance(c).getAppWidgetOptions(widgetId).getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT) in 1 until 110
+  /** The routes widget at [height] dp (0 = not known): lower than the full layout needs, the
+   *  one-row layout. Both have the same ids. */
+  private fun bar(c: Context, widgetId: Int, b: WidgetBar, height: Int) =
+    RemoteViews(c.packageName, if (height in 1 until 150) R.layout.widget_routes_row else R.layout.widget_routes).apply {
+      setTextViewText(R.id.title, b.title)
+      val shown = b.routes.associateBy { it.route }
+      tiles.forEach { (letter, t) ->
+        setViewVisibility(t.root, if (letter in shown) View.VISIBLE else View.GONE)
+        setOnClickPendingIntent(t.root, tap(c, widgetId * 10 + 1 + "ABCD".indexOf(letter), b.robotUid) { putExtra("route", letter) })
+        shown[letter]?.let {
+          setTextViewText(t.name, it.title)
+          setContentDescription(t.root, tr.startRoute(it.title))
+        }
+      }
+      setTextViewText(R.id.status, b.status)
+      // the schedule known: a chip with a switch, a tap switches it to the other state; else opens the app
+      val on = b.scheduleOn
+      setViewVisibility(R.id.schedule_switch, if (on == null) View.GONE else View.VISIBLE)
+      setInt(R.id.schedule, "setBackgroundResource", if (on == null) 0 else R.drawable.widget_chip)
+      if (on != null) {
+        setImageViewResource(R.id.schedule_switch, if (on) R.drawable.widget_switch_on else R.drawable.widget_switch_off)
+        setContentDescription(R.id.schedule, tr.widgetSwitchPlanning(!on))
+      }
+      setOnClickPendingIntent(
+        R.id.schedule,
+        if (on != null) tap(c, widgetId * 10 + 5, b.robotUid) { putExtra("on", !on) }
+        else PendingIntent.getActivity(c, widgetId, Intent(c, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT),
+      )
+    }
 
+  /** A tap for [WidgetTapReceiver]: a "route", or the schedule switched "on" (true/false). */
   private fun tap(c: Context, code: Int, robotUid: String?, what: Intent.() -> Unit): PendingIntent {
     val i = Intent(c, WidgetTapReceiver::class.java).setAction("nl.eschouten.scraper.TAP").putExtra("robot", robotUid).apply(what)
     return PendingIntent.getBroadcast(c, code, i, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
@@ -110,7 +117,7 @@ class RoutesWidget : AppWidgetProvider() {
     ids.forEach { manager.updateAppWidget(it, WidgetViews.views(context, it, tile = false)) }
   }
 
-  /** Resized: one row high or more picks the layout. */
+  /** Resized: its height picks the layout. */
   override fun onAppWidgetOptionsChanged(context: Context, manager: AppWidgetManager, id: Int, options: Bundle) {
     manager.updateAppWidget(id, WidgetViews.views(context, id, tile = false))
   }
