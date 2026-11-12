@@ -32,7 +32,8 @@
             android:textColor="@color/widget_text"
             android:textSize="14sp"
             android:textStyle="bold" />
-        <Space
+        <!-- spacer: an empty FrameLayout (home-screen widgets may not use Space or View) -->
+        <FrameLayout
             android:layout_width="0dp"
             android:layout_height="1dp"
             android:layout_weight="1" />
