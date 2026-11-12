@@ -40,6 +40,8 @@ targets:
     postBuildScripts:
       - name: Version MAJOR.MINOR.build
         basedOnDependencyAnalysis: false
+        # the processed Info.plist as input: Xcode then runs this after it, not before
+        inputFiles: ["$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)"]
         script: |
           "$SRCROOT/set-version.sh"
   ScraperWidgets:
@@ -71,6 +73,8 @@ targets:
     postBuildScripts:
       - name: Version MAJOR.MINOR.build
         basedOnDependencyAnalysis: false
+        # the processed Info.plist as input: Xcode then runs this after it, not before
+        inputFiles: ["$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)"]
         script: |
           "$SRCROOT/set-version.sh"
   ScraperControlUITests:
