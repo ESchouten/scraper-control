@@ -74,6 +74,10 @@ jobs:
         working-directory: native
         shell: bash
         run: ./gradlew :composeApp:jvmTest --console=plain
+      - name: Settings file on Windows (saving replaces the file there too)
+        working-directory: native
+        shell: bash
+        run: ./gradlew :shared:jvmTest --tests "*FileStoreTest*" --console=plain
       - name: Windows installer (without build secrets, a release has them)
         working-directory: native
         shell: bash
