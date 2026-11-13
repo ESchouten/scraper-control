@@ -25,7 +25,7 @@ enum class Tone { Ok, Warn, Idle, Error, Brand, Neutral }
 enum class Glyph {
   Check, Stop, Science, BluetoothOff, BluetoothSearching, Bluetooth, Lock, Pending, Visibility, Error,
   Schedule, Shield, Touch, Robot, Add, Widgets, Translate, Logbook, Restart, Badge, Delete, Dialpad,
-  Phone, Play, Refresh,
+  Phone, Play, Refresh, Forward, Backward,
 }
 
 enum class Platform { Android, Ios, Desktop }

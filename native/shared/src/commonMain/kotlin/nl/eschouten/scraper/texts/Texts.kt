@@ -211,6 +211,11 @@ class Tr(val code: String) {
   val softLeft: String get() = t("Softkey links", "Soft key left")
   val softMiddle: String get() = t("Softkey midden", "Soft key middle")
   val softRight: String get() = t("Softkey rechts", "Soft key right")
+  val motorLeft: String get() = t("Linkermotor", "Left motor")
+  val motorRight: String get() = t("Rechtermotor", "Right motor")
+  val direction: String get() = t("Richting", "Direction")
+  val forward: String get() = t("Vooruit", "Forward")
+  val backward: String get() = t("Achteruit", "Backward")
   val keyUp: String get() = t("Omhoog", "Up")
   val keyDown: String get() = t("Omlaag", "Down")
   // ---- scan view ------------------------------------------------------------------

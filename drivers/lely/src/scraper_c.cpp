@@ -83,7 +83,10 @@ std::string jsonString(const std::string& s) {
   return o + "\"";
 }
 
-std::string statusJson(const Status& st, const std::string& screen, const std::string& highlighted, int sync) {
+// [manual]: the HANDBEDIENING screen's motors and direction (1 / 0 / -1 unknown), null elsewhere.
+std::string statusJson(const Status& st, const Screen& scr, int sync) {
+  std::string highlighted = scr.isManual() ? "" : scr.highlighted();   // there the boxes are the motors
+  std::string screen = scr.text();
   std::string o = "{";
   o += "\"planning\":" + std::to_string(st.planning);
   o += ",\"clock\":" + jsonString(st.clock);
@@ -100,6 +103,13 @@ std::string statusJson(const Status& st, const std::string& screen, const std::s
   o += ",\"highlighted\":" + jsonString(highlighted);
   o += ",\"language\":" + jsonString(st.language);
   o += ",\"sync\":" + std::to_string(sync);
+  if (scr.isManual()) {
+    ManualState m = scr.manual();
+    o += ",\"manual\":{\"left\":" + std::to_string(m.left) + ",\"right\":" + std::to_string(m.right) +
+         ",\"forward\":" + std::to_string(m.forward) + "}";
+  } else {
+    o += ",\"manual\":null";
+  }
   return o + "}";
 }
 
@@ -153,7 +163,7 @@ struct scraper_session {
   }
 
   void snapshot() {   // worker thread
-    std::string js = statusJson(robot.status(), robot.screen.text(), robot.screen.highlighted(), robot.syncPercent());
+    std::string js = statusJson(robot.status(), robot.screen, robot.syncPercent());
     std::lock_guard<std::mutex> g(mu);
     status = js;
     error = robot.lastError();

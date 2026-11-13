@@ -98,6 +98,16 @@ class FakeRobotTest {
     assertTrue(d.count { it == 1 } >= 2, d.toString()) // repeats while held, as the robot's own panel
   }
 
+  @Test fun manualStateFromTheImages() {
+    run(FakeRobotOptions(mode = "manual")) { r ->
+      assertEquals(ManualState(left = false, right = false, forward = true), r.status().manual)
+      assertEquals("", r.status().highlighted) // the motor boxes are no menu selection
+      r.press(RobotKey.Soft1)
+      assertEquals(ManualState(left = true, right = false, forward = true), r.status().manual)
+    }
+    run { r -> assertEquals(null, r.status().manual) }
+  }
+
   @Test fun quickTapStillHoldsBriefly() {
     val l = run(FakeRobotOptions(mode = "manual")) { r -> r.hold(RobotKey.StartStop, CompletableDeferred(Unit)) }
     assertEquals(listOf(0, 7), listOf(l.log.drive.first(), l.log.drive.last()))

@@ -21,6 +21,7 @@ struct PanelView: View {
     ScrollView {
       VStack(alignment: .leading, spacing: Space.l) {
         Lcd(lines: v.lines, highlighted: v.highlighted, dimmed: v.dimmed)
+        if let m = v.manual { manual(m) }
         VStack(spacing: 10) {
           ForEach(Array(v.keys.enumerated()), id: \.offset) { _, row in
             HStack(spacing: 10) {
@@ -82,6 +83,26 @@ struct PanelView: View {
       }
     }
     .onDisappear { Task { try? await flow.disconnect() } }
+  }
+
+  /// Manual control: what each soft key below has set, in the keys' columns.
+  private func manual(_ cells: [ManualCell]) -> some View {
+    HStack(spacing: 10) {
+      ForEach(cells, id: \.testId) { m in
+        VStack(spacing: 2) {
+          Text(m.label).font(.system(size: scaled(12))).foregroundStyle(C.onSurfaceVariant).lineLimit(1)
+          HStack(spacing: 2) {
+            if let g = m.glyph { g.image.font(.system(size: scaled(14), weight: .bold)).foregroundStyle(C.primary) }
+            Text(m.value).font(.system(size: scaled(15), weight: .bold)).foregroundStyle(m.on ? C.ok : C.onSurface)
+          }
+        }
+        .frame(maxWidth: .infinity).padding(.vertical, Space.s)
+        .background(m.on ? C.okSoft : C.containerLow, in: RoundedRectangle(cornerRadius: Radii.m, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Radii.m, style: .continuous).stroke(m.on ? C.ok : C.outlineVariant, lineWidth: m.on ? 2 : 1))
+        .accessibilityElement(children: .combine)
+        .testId(m.testId)
+      }
+    }
   }
 
   private func key(_ k: PanelKey, enabled: Bool) -> some View {

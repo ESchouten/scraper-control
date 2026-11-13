@@ -14,6 +14,8 @@ import androidx.compose.material.icons.outlined.VerifiedUser
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.Widgets
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.ArrowDownward
+import androidx.compose.material.icons.rounded.ArrowUpward
 import androidx.compose.material.icons.rounded.Bluetooth
 import androidx.compose.material.icons.rounded.BluetoothDisabled
 import androidx.compose.material.icons.rounded.BluetoothSearching
@@ -57,4 +59,6 @@ val Glyph.icon: ImageVector
     Glyph.Phone -> Icons.Rounded.PhoneAndroid
     Glyph.Play -> Icons.Rounded.PlayArrow
     Glyph.Refresh -> Icons.Rounded.Refresh
+    Glyph.Forward -> Icons.Rounded.ArrowUpward
+    Glyph.Backward -> Icons.Rounded.ArrowDownward
   }

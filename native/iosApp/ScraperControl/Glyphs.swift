@@ -30,6 +30,8 @@ extension Glyph {
     case .phone: return "iphone"
     case .play: return "play.fill"
     case .refresh: return "arrow.clockwise"
+    case .forward: return "arrow.up"
+    case .backward: return "arrow.down"
     default: return "questionmark"
     }
   }

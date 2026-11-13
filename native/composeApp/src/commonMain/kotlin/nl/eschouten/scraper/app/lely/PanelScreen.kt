@@ -5,6 +5,7 @@ package nl.eschouten.scraper.app
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -77,6 +78,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import nl.eschouten.scraper.core.RobotKey
+import nl.eschouten.scraper.lely.ManualCell
 import nl.eschouten.scraper.lely.PanelFlow
 import nl.eschouten.scraper.lely.PanelKey
 import nl.eschouten.scraper.texts.tr
@@ -130,6 +132,7 @@ fun PanelScreen(controller: RobotController, host: AppHost, nav: Nav) {
           .padding(start = Space.gutter, end = Space.gutter, top = Space.xs, bottom = Space.xl),
       ) {
         Lcd(v.lines, v.highlighted, v.dimmed)
+        v.manual?.let { Manual(it) }
         Spacer(Modifier.height(Space.l))
         Keypad(v.keys, v.keysEnabled, onUp = flow::keyUp) { k ->
           haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -173,6 +176,30 @@ private fun Keypad(rows: List<List<PanelKey>>, enabled: Boolean, onUp: () -> Uni
       Row {
         for (k in row) {
           Box(Modifier.weight(1f).padding(5.dp)) { Key(k, enabled, { onDown(k.key) }, onUp) }
+        }
+      }
+    }
+  }
+}
+
+/** Manual control: what each soft key below has set, in the keys' columns. */
+@Composable
+private fun Manual(cells: List<ManualCell>) {
+  val c = MaterialTheme.colorScheme
+  val st = LocalStatus.current
+  Row(Modifier.padding(top = Space.m)) {
+    for (m in cells) {
+      Column(
+        Modifier.weight(1f).padding(horizontal = 5.dp).clip(RoundedCornerShape(Radii.m))
+          .background(if (m.on) st.okSoft else c.surfaceContainerLow)
+          .border(if (m.on) 2.dp else 1.dp, if (m.on) st.ok else c.outlineVariant, RoundedCornerShape(Radii.m))
+          .padding(vertical = Space.s).semantics(mergeDescendants = true) {}.testTag(m.testId),
+        horizontalAlignment = Alignment.CenterHorizontally,
+      ) {
+        Text(m.label, fontSize = 12.sp, color = c.onSurfaceVariant, maxLines = 1)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+          m.glyph?.let { Icon(it.icon, null, Modifier.size(18.dp), tint = c.primary) }
+          Text(m.value, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = if (m.on) st.ok else c.onSurface)
         }
       }
     }

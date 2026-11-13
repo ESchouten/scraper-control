@@ -20,6 +20,7 @@ import nl.eschouten.scraper.app.immediateOrDefault
 import nl.eschouten.scraper.texts.tr
 import nl.eschouten.scraper.ui.Action
 import nl.eschouten.scraper.ui.ActionKind
+import nl.eschouten.scraper.ui.Glyph
 import nl.eschouten.scraper.ui.newScope
 import nl.eschouten.scraper.ui.watchIn
 
@@ -102,13 +103,16 @@ class PanelFlow(private val controller: RobotController) {
 
   fun view(cs: ControllerState, st: PanelState = _state.value): PanelScreen {
     val live = (controller.session as? LelySession)?.live
-    return panelScreen(cs, st.held, st.error, live?.screen, live?.highlighted)
+    return panelScreen(cs, st.held, st.error, live?.screen, live?.highlighted, live?.manual)
   }
 }
 
 // ---- what the apps draw ----
 
 data class PanelKey(val key: RobotKey, val label: String, val testId: String)
+
+/** In manual control, above each soft key what it sets: the robot shows that as images. */
+data class ManualCell(val label: String, val value: String, val on: Boolean, val glyph: Glyph?, val testId: String)
 
 data class PanelScreen(
   val title: String,
@@ -118,6 +122,8 @@ data class PanelScreen(
   /** The selected row (drawn in brand red), "" if none. */
   val highlighted: String,
   val dimmed: Boolean,
+  /** Manual control: left motor, direction, right motor; null on other screens. */
+  val manual: List<ManualCell>?,
   val keysEnabled: Boolean,
   /** 3 rows of 3, in the robot's own layout. */
   val keys: List<List<PanelKey>>,
@@ -131,7 +137,7 @@ data class PanelScreen(
 )
 
 /** [held]: this screen asked for the connection; [error]: why that failed. */
-fun panelScreen(s: ControllerState, held: Boolean, error: String?, screen: String?, highlighted: String?): PanelScreen {
+fun panelScreen(s: ControllerState, held: Boolean, error: String?, screen: String?, highlighted: String?, manual: ManualState?): PanelScreen {
   val connected = s.connected && held
   val connecting = held && !s.connected
   val text = when {
@@ -145,6 +151,15 @@ fun panelScreen(s: ControllerState, held: Boolean, error: String?, screen: Strin
     lines = text.split('\n'),
     highlighted = if (connected) (highlighted ?: "").trim() else "",
     dimmed = !connected,
+    manual = manual?.takeIf { connected }?.let { m ->
+      fun motor(on: Boolean?) = on?.let { if (it) tr.on else tr.off } ?: "?"
+      listOf(
+        ManualCell(tr.motorLeft, motor(m.left), m.left == true, null, "manual-left"),
+        ManualCell(tr.direction, m.forward?.let { if (it) tr.forward else tr.backward } ?: "?", false,
+          m.forward?.let { if (it) Glyph.Forward else Glyph.Backward }, "manual-direction"),
+        ManualCell(tr.motorRight, motor(m.right), m.right == true, null, "manual-right"),
+      )
+    },
     keysEnabled = connected,
     keys = listOf(
       listOf(PanelKey(RobotKey.Soft1, tr.softLeft, "key-soft1"), PanelKey(RobotKey.Soft2, tr.softMiddle, "key-soft2"), PanelKey(RobotKey.Soft3, tr.softRight, "key-soft3")),

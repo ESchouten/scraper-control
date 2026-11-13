@@ -8,6 +8,7 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
@@ -44,6 +45,9 @@ enum class RobotKey(val code: Int) {
   Back(1), Soft2(2), Soft1(4), Up(8), Prog(16), Down(32), Soft3(64), Enter(128), StartStop(256)
 }
 
+/** The manual control screen's motors and direction; null = not known. */
+data class ManualState(val left: Boolean?, val right: Boolean?, val forward: Boolean?)
+
 /** What the core read from the robot's screen (scraper_status_json). */
 data class CoreStatus(
   /** Time planning on/off; null = not on the home screen. */
@@ -64,6 +68,8 @@ data class CoreStatus(
   val language: String = "",
   /** How far the robot is with sending its image set (0-100), null when it is not. */
   val syncPercent: Int? = null,
+  /** On the manual control screen: what the robot shows there as images, else null. */
+  val manual: ManualState? = null,
 ) {
   companion object {
     fun fromJson(json: String): CoreStatus {
@@ -78,6 +84,10 @@ data class CoreStatus(
         busy = b("busy") ?: true, driving = b("driving") ?: false, stopQuestion = b("stopQuestion") ?: false,
         screen = s("screen"), highlighted = s("highlighted"), language = s("language"),
         syncPercent = i("sync")?.takeIf { it >= 0 },
+        manual = (d["manual"] as? JsonObject)?.let { m ->
+          fun f(k: String) = when (m[k]?.jsonPrimitive?.intOrNull) { 1 -> true; 0 -> false; else -> null }
+          ManualState(f("left"), f("right"), f("forward"))
+        },
       )
     }
   }
