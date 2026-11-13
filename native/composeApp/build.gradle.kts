@@ -38,7 +38,17 @@ compose.desktop {
     nativeDistributions {
       packageName = "Scraper Control"
       // the app icon (from the iOS/Android icon), per system
-      macOS { iconFile.set(project.file("icons/icon.icns")) }
+      macOS {
+        iconFile.set(project.file("icons/icon.icns"))
+        bundleID = "nl.eschouten.scraper.desktop"
+        // macOS stops an app that uses Bluetooth without saying why (BLE and classic alike)
+        infoPlist {
+          extraKeysRawXml = """
+            <key>NSBluetoothAlwaysUsageDescription</key>
+            <string>To control the robot over Bluetooth.</string>
+          """.trimIndent()
+        }
+      }
       linux { iconFile.set(project.file("icons/icon.png")) }
       windows {
         iconFile.set(project.file("icons/icon.ico"))
