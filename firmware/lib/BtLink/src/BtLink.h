@@ -24,9 +24,9 @@ struct FoundRobot {
 
 class BtLink : public driver::Transport {
  public:
-  // All robots nearby, strongest first: over BLE, and only when BLE finds none, over classic
-  // Bluetooth (a classic search spoils a BLE scan next to it).
-  static std::vector<FoundRobot> scanAll(uint32_t ms = 5000);
+  // All robots nearby, strongest first: over BLE, and only when BLE finds none (and classic),
+  // over classic Bluetooth (a classic search spoils a BLE scan next to it).
+  static std::vector<FoundRobot> scanAll(uint32_t ms = 5000, bool classic = true);
   // Stops Bluetooth and gives its memory back (for wifi); the next search or connect starts it
   // again. No link may be in use.
   static void release();
@@ -44,7 +44,7 @@ class BtLink : public driver::Transport {
   bool classic() const { return classic_; }
 
  private:
-  bool search();
+  bool search(bool classic = true);
   bool connectBle();
   bool connectClassic();
   void received(const uint8_t* d, size_t n);

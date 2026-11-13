@@ -56,7 +56,7 @@ void BtLink::release() {
   }
 }
 
-std::vector<FoundRobot> BtLink::scanAll(uint32_t ms) {
+std::vector<FoundRobot> BtLink::scanAll(uint32_t ms, bool classic) {
   std::vector<FoundRobot> out;
   startBle();
   BLEScan* s = BLEDevice::getScan();
@@ -69,7 +69,7 @@ std::vector<FoundRobot> BtLink::scanAll(uint32_t ms) {
     out.push_back({a, d.getName().c_str(), d.getRSSI(), false});
   }
   s->clearResults();
-  if (out.empty() && startClassic()) {
+  if (out.empty() && classic && startClassic()) {
     BTScanResults* found = spp.discover(kClassicSearchMs);
     for (int i = 0; found && i < found->getCount(); i++) {
       BTAdvertisedDevice* d = found->getDevice(i);
@@ -82,8 +82,8 @@ std::vector<FoundRobot> BtLink::scanAll(uint32_t ms) {
   return out;
 }
 
-bool BtLink::search() {   // the strongest robot nearby
-  std::vector<FoundRobot> found = scanAll();
+bool BtLink::search(bool classic) {   // the strongest robot nearby
+  std::vector<FoundRobot> found = scanAll(5000, classic);
   if (found.empty()) return false;
   address_ = found.front().address;
   classic_ = found.front().classic;
@@ -101,11 +101,11 @@ bool BtLink::connect() {
     if (i) delay(1000);
     if (classic_ ? connectClassic() : connectBle()) return true;
   }
-  // Robot moved or answers another way now: search once and retry.
+  // Robot moved: search once and retry. A BLE robot stays BLE: no classic search (8 s) then.
   std::string keepAddress = address_;
   bool keepClassic = classic_;
   address_.clear();
-  if (search() && (classic_ ? connectClassic() : connectBle())) return true;
+  if (search(keepClassic) && (classic_ ? connectClassic() : connectBle())) return true;
   address_ = keepAddress;
   classic_ = keepClassic;
   return false;
@@ -116,10 +116,11 @@ bool BtLink::connectBle() {
   if (!client) client = BLEDevice::createClient();
   // A short connection interval (7.5 to 15 ms; Bluedroid takes 30 to 50 ms by itself), so
   // every key and every answer of the robot crosses sooner. Supervision timeout 4 s.
+  // A robot in reach answers within a second: 3 s per try.
   esp_bd_addr_t a;
   if (sscanf(address_.c_str(), "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", &a[0], &a[1], &a[2], &a[3], &a[4], &a[5]) == 6)
     esp_ble_gap_set_prefer_conn_params(a, 6, 12, 0, 400);
-  if (!client->connect(BLEAddress(address_.c_str()), BLE_ADDR_TYPE_PUBLIC, 5000)) return false;
+  if (!client->connect(BLEAddress(address_.c_str()), BLE_ADDR_TYPE_PUBLIC, 3000)) return false;
   BLERemoteService* svc = client->getService(BLEUUID(kService));
   if (!svc) { client->disconnect(); return false; }
   rx_ = svc->getCharacteristic(BLEUUID(kRx));
