@@ -22,6 +22,7 @@ on:
 
 permissions:
   contents: write
+  actions: read # the ci run of this commit
 
 jobs:
   version: # 1.6.120: scraper.version + the build number (commit count + scraper.buildBase)
@@ -38,6 +39,12 @@ jobs:
           BUILD=$(( $(git rev-list --count HEAD) + $(sed -n 's/^scraper.buildBase=//p' native/gradle.properties) ))
           echo "build=$BUILD" >> "$GITHUB_OUTPUT"
           echo "version=$(sed -n 's/^scraper.version=//p' native/gradle.properties).$BUILD" >> "$GITHUB_OUTPUT"
+      - name: Tested? (a release only builds; workflow ci has tested this commit)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          n=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA&status=success" -q .total_count)
+          test "$n" -gt 0 || { echo "ci has not passed for $GITHUB_SHA (yet)"; exit 1; }
 
   firmware:
     needs: version
@@ -52,6 +59,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      # What ci compiled (read only: a release build carries the secrets, ci's must not)
+      - uses: actions/cache/restore@v4
+        with:
+          path: ~/.platformio
+          key: pio-${{ hashFiles('firmware/platformio.ini') }}
+      - uses: actions/cache/restore@v4
+        with:
+          path: firmware/.pio/build
+          key: pio-build-${{ hashFiles('firmware/platformio.ini') }}-${{ github.sha }}
+          restore-keys: pio-build-${{ hashFiles('firmware/platformio.ini') }}-
       - run: pip install platformio
       - name: Build secrets
         env:
@@ -94,6 +111,8 @@ jobs:
           distribution: temurin
           java-version: "17"
       - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: true # ci's caches; a release adds nothing to them
       - name: Build secrets
         env:
           BUILD_SECRETS: ${{ secrets.BUILD_SECRETS }}
@@ -135,6 +154,8 @@ jobs:
           distribution: temurin
           java-version: "17"
       - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: true # ci's caches; a release adds nothing to them
       - name: Build secrets
         shell: bash
         env:
