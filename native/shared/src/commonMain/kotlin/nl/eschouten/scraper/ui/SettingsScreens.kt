@@ -248,7 +248,10 @@ class ScanFlow(
     rows = st.found.map { f ->
       FoundRow(
         f.id, f.name.ifEmpty { model.fullName },
-        if (platform == Platform.Ios) tr.signal(bars(f.signal)) else tr.signalWithId(f.id, bars(f.signal)),
+        when (val b = bars(f.signal)) {
+          null -> if (platform == Platform.Ios) "" else f.id
+          else -> if (platform == Platform.Ios) tr.signal(b) else tr.signalWithId(f.id, b)
+        },
         f.id == st.selectedId, "found-${f.id}",
       )
     },
@@ -260,7 +263,9 @@ class ScanFlow(
   )
 
   companion object {
+    /** Null when the signal is not known (-127: a classic Bluetooth inquiry on the desktop). */
     fun bars(rssi: Int) = when {
+      rssi <= -127 -> null
       rssi >= -60 -> tr.signalStrong
       rssi >= -75 -> tr.signalGood
       rssi >= -88 -> tr.signalWeak

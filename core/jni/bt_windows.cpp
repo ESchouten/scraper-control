@@ -88,18 +88,23 @@ int64_t open(const std::string& address, const std::string& service, std::string
   sa.serviceClassId.Data2 = (unsigned short)(u[4] << 8 | u[5]);
   sa.serviceClassId.Data3 = (unsigned short)(u[6] << 8 | u[7]);
   memcpy(sa.serviceClassId.Data4, u + 8, 8);
-  sa.port = 0;   // look the channel up by the service
-  SOCKET s = socket(AF_BTH, SOCK_STREAM, BTHPROTO_RFCOMM);
-  if (s == INVALID_SOCKET) {
-    error = lastError("socket");
-    return -1;
-  }
-  if (connect(s, (sockaddr*)&sa, sizeof sa) == SOCKET_ERROR) {
-    error = lastError("connect");
+  // First the channel Windows looks up by the service; when that fails, channel 1, where
+  // serial port modules usually sit.
+  for (ULONG port : {0UL, 1UL}) {
+    sa.port = port;
+    SOCKET s = socket(AF_BTH, SOCK_STREAM, BTHPROTO_RFCOMM);
+    if (s == INVALID_SOCKET) {
+      error = lastError("socket");
+      return -1;
+    }
+    ULONG off = FALSE;   // no pairing, no PIN prompt
+    setsockopt(s, SOL_RFCOMM, SO_BTH_AUTHENTICATE, (const char*)&off, sizeof off);
+    setsockopt(s, SOL_RFCOMM, SO_BTH_ENCRYPT, (const char*)&off, sizeof off);
+    if (connect(s, (sockaddr*)&sa, sizeof sa) == 0) return (int64_t)s;
+    error += (error.empty() ? "" : ", ") + lastError(port ? "connect on channel 1" : "connect");
     closesocket(s);
-    return -1;
   }
-  return (int64_t)s;
+  return -1;
 }
 
 int read(int64_t h, uint8_t* buf, int n) {

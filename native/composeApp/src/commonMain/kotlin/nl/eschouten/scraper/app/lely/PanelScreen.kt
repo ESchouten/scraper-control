@@ -5,6 +5,7 @@ package nl.eschouten.scraper.app
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,8 +17,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -37,7 +38,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -46,20 +46,29 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -68,9 +77,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import nl.eschouten.scraper.core.RobotKey
-import nl.eschouten.scraper.texts.tr
 import nl.eschouten.scraper.lely.PanelFlow
 import nl.eschouten.scraper.lely.PanelKey
+import nl.eschouten.scraper.texts.tr
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -122,9 +131,9 @@ fun PanelScreen(controller: RobotController, host: AppHost, nav: Nav) {
       ) {
         Lcd(v.lines, v.highlighted, v.dimmed)
         Spacer(Modifier.height(Space.l))
-        Keypad(v.keys, v.keysEnabled) { k ->
+        Keypad(v.keys, v.keysEnabled, onUp = flow::keyUp) { k ->
           haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-          scope.launch { flow.press(k)?.let(toast) }
+          flow.keyDown(k, toast)
         }
         Spacer(Modifier.height(Space.l))
         v.error?.let {
@@ -158,30 +167,52 @@ fun PanelScreen(controller: RobotController, host: AppHost, nav: Nav) {
 
 /** Same keys in the same place as the robot's panel. */
 @Composable
-private fun Keypad(rows: List<List<PanelKey>>, enabled: Boolean, onPress: (RobotKey) -> Unit) {
+private fun Keypad(rows: List<List<PanelKey>>, enabled: Boolean, onUp: () -> Unit, onDown: (RobotKey) -> Unit) {
   Column {
     for (row in rows) {
       Row {
         for (k in row) {
-          Box(Modifier.weight(1f).padding(5.dp)) { Key(k, enabled) { onPress(k.key) } }
+          Box(Modifier.weight(1f).padding(5.dp)) { Key(k, enabled, { onDown(k.key) }, onUp) }
         }
       }
     }
   }
 }
 
+/** Held down as long as the finger is on it, as a key on the robot's own panel. */
 @Composable
-private fun Key(k: PanelKey, enabled: Boolean, onClick: () -> Unit) {
+private fun Key(k: PanelKey, enabled: Boolean, onDown: () -> Unit, onUp: () -> Unit) {
   val shape = RoundedCornerShape(Radii.m)
-  Surface(
-    onClick, Modifier.fillMaxWidth().aspectRatio(1.25f).alpha(if (enabled) 1f else 0.45f).shadow(6.dp, shape)
-      .semantics { contentDescription = k.label }.testTag(k.testId),
-    enabled = enabled, shape = shape, color = Color.Transparent,
+  var pressed by remember { mutableStateOf(false) }
+  val down by rememberUpdatedState(onDown)
+  val up by rememberUpdatedState(onUp)
+  Box(
+    Modifier.fillMaxWidth().aspectRatio(1.25f).alpha(if (enabled) 1f else 0.45f).shadow(6.dp, shape).clip(shape)
+      .background(Brush.verticalGradient(listOf(Color(0xFFD8283F), Brand.red, Brand.redDeep)))
+      .pointerInput(enabled) {
+        if (enabled) {
+          detectTapGestures(onPress = {
+            pressed = true
+            down()
+            try {
+              tryAwaitRelease()
+            } finally {
+              up()
+              pressed = false
+            }
+          })
+        }
+      }
+      .semantics {
+        contentDescription = k.label
+        role = Role.Button
+        if (enabled) onClick { down(); up(); true } else disabled()
+      }
+      .testTag(k.testId),
+    contentAlignment = Alignment.Center,
   ) {
-    Box(
-      Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFFD8283F), Brand.red, Brand.redDeep))),
-      contentAlignment = Alignment.Center,
-    ) { KeyFace(k.key) }
+    if (pressed) Box(Modifier.matchParentSize().background(Color.Black.copy(alpha = 0.18f)))
+    KeyFace(k.key)
   }
 }
 

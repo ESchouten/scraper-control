@@ -43,6 +43,8 @@ class FakeRobotLog {
   var sel = 0
   var stopped = false
   var imagesSent = 0
+  /** Start/Stop events in manual control: 0 down, 1 still held, 7 up. */
+  val drive = mutableListOf<Int>()
 }
 
 private val KEYS = mapOf(1 to "back", 2 to "soft2", 4 to "soft1", 16 to "prog", 8 to "up", 32 to "down", 64 to "soft3", 128 to "enter", 256 to "start_stop")
@@ -238,7 +240,10 @@ class FakeRobotLink(
     } else if (b[0] == 5 && b[1] == 3) { if (imagesAnnounced) imagesAnnounced = false else draw() }
     val ev = b[0] or (b[1] shl 8)
     val key = b[2] or (b[3] shl 8)
-    if (ln == 4 && mode == "manual" && KEYS[key] == "start_stop") return
+    if (ln == 4 && mode == "manual" && KEYS[key] == "start_stop") {
+      log.drive += ev
+      return
+    }
     if (ln != 4 || ev != 0) return
     val k = KEYS[key] ?: return
     log.pressed += k

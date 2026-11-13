@@ -3,6 +3,7 @@
 // host are queued by scraper_feed() and handed to the robot inside Transport::pump().
 #include "scraper_c.h"
 
+#include <atomic>
 #include <chrono>
 #include <condition_variable>
 #include <cstdlib>
@@ -200,6 +201,7 @@ struct scraper_session {
   int32_t pendingCmd = 0, lastResult = SCRAPER_OK;
   bool busy = false, quit = false, connected = false, versionChanged = false;
   int32_t owed = -1, owedIn = -1;
+  std::atomic<int> holdGen{0}, releasedGen{0};   // a hold runs until its number is released
   std::string status = "{}", error, routes = "{}";
   uint8_t versionCopy[9] = {0};
   std::thread worker;
@@ -301,6 +303,23 @@ int32_t scraper_set_planning(scraper_session* s, int32_t on) {
 
 int32_t scraper_press(scraper_session* s, int32_t key) {
   return s->submit(SCRAPER_CMD_PRESS, [s, key] { return s->robot.press((Key)key); });
+}
+
+int32_t scraper_hold(scraper_session* s, int32_t key) {
+  int gen = ++s->holdGen;
+  return s->submit(SCRAPER_CMD_HOLD, [s, key, gen] {
+    uint32_t start = s->link.now();
+    s->robot.holdBegin((Key)key);
+    // the robot needs a press of some length, also for a quick tap on a touch screen
+    while ((s->releasedGen < gen || s->link.now() - start < 80) && s->robot.linked() && s->link.now() - start < 120000)
+      s->robot.driveHold(20);
+    s->robot.holdEnd();
+    return Result::Ok;
+  });
+}
+
+void scraper_unhold(scraper_session* s) {
+  if (s) s->releasedGen = s->holdGen.load();
 }
 
 int32_t scraper_finish(scraper_session* s) {

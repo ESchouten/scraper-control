@@ -7,12 +7,16 @@ package nl.eschouten.scraper.lely
 import nl.eschouten.scraper.core.*
 import nl.eschouten.scraper.link.*
 
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import nl.eschouten.scraper.app.Cancellable
 import nl.eschouten.scraper.app.ControllerState
 import nl.eschouten.scraper.app.Outcome
 import nl.eschouten.scraper.app.RobotController
+import nl.eschouten.scraper.app.immediateOrDefault
 import nl.eschouten.scraper.texts.tr
 import nl.eschouten.scraper.ui.Action
 import nl.eschouten.scraper.ui.ActionKind
@@ -39,6 +43,7 @@ class PanelFlow(private val controller: RobotController) {
 
   /** The "live · disconnect" chip, and leaving the screen. */
   suspend fun disconnect() {
+    keyUp()
     if (!_state.value.held) return
     _state.value = _state.value.copy(held = false)
     controller.release()
@@ -58,10 +63,41 @@ class PanelFlow(private val controller: RobotController) {
     }
   }
 
-  /** A key; the message for a toast when it failed, else null. */
+  /** A tap on a key; the message for a toast when it failed, else null. */
   suspend fun press(key: RobotKey): String? {
     val o: Outcome = controller.custom { (it as LelySession).press(key) }
     return if (o.ok) null else o.message
+  }
+
+  private var up: CompletableDeferred<Unit>? = null
+  private var downSent: RobotKey? = null
+
+  /** A finger on a key: held as on the robot's own panel until [keyUp], so in manual control the
+   *  robot drives while Start/Stop is held. [onError] gets the message for a toast. */
+  fun keyDown(key: RobotKey, onError: (String) -> Unit) {
+    keyUp()
+    downSent = key
+    val u = CompletableDeferred<Unit>().also { up = it }
+    scope.launch(Dispatchers.Main.immediateOrDefault()) {
+      val o = controller.custom { (it as LelySession).hold(key, u) }
+      if (!o.ok) onError(o.message)
+    }
+  }
+
+  /** The finger left the key. */
+  fun keyUp() {
+    up?.complete(Unit)
+    up = null
+  }
+
+  /** A button's action, after the finger left it (SwiftUI, accessibility): a tap, unless
+   *  [keyDown] already sent this press (SwiftUI may skip a press too quick to draw). */
+  fun keyTapped(key: RobotKey, onError: (String) -> Unit) {
+    if (downSent != key) {
+      keyDown(key, onError)
+      keyUp()
+    }
+    downSent = null
   }
 
   fun view(cs: ControllerState, st: PanelState = _state.value): PanelScreen {

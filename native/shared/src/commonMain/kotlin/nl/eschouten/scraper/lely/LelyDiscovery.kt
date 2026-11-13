@@ -3,6 +3,7 @@
 // between that core (Lely, CoreSession) and model/Scraper.kt.
 package nl.eschouten.scraper.lely
 
+import kotlinx.coroutines.Deferred
 import nl.eschouten.scraper.core.*
 import nl.eschouten.scraper.link.*
 
@@ -185,6 +186,9 @@ class LelySession(
   /** A raw panel key (panel screen). */
   suspend fun press(key: RobotKey) = guard { robot!!.press(key) }
 
+  /** A raw panel key held down until [up] completes (manual control: drives while Start/Stop is held). */
+  suspend fun hold(key: RobotKey, up: Deferred<*>) = guard { robot!!.hold(key, up) }
+
   /** Planning owed by a session whose link dropped, as "1@<epoch ms>"; too old = forgotten
    *  (someone may have changed the robot on purpose since). */
   private fun owedPlanning(now: Long = Clock.System.now().toEpochMilliseconds()): Int {
@@ -223,7 +227,7 @@ class LelySession(
     } catch (e: kotlinx.coroutines.CancellationException) {
       throw e
     } catch (e: Exception) {
-      throw ScraperException(ScraperFault.NotFound, tr.noConnection)
+      throw ScraperException(ScraperFault.NotFound, tr.noConnection(e.message))
     }
   }
 

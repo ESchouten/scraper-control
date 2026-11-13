@@ -3,6 +3,8 @@
 package nl.eschouten.scraper.core
 
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -100,6 +102,8 @@ internal interface CoreNative {
   fun readRoutes(): Int
   fun routesJson(): String
   fun press(key: Int): Int
+  fun hold(key: Int): Int
+  fun unhold()
   fun finish(): Int
   fun setOwedPlanning(owed: Int)
   fun owedPlanning(): Int
@@ -168,6 +172,18 @@ class CoreSession(
     runCatching { Json.parseToJsonElement(n.routesJson()).jsonObject.mapValues { it.value.jsonPrimitive.content } }.getOrNull()
   } ?: emptyMap()
   suspend fun press(key: Int) = command { it.press(key) }
+
+  /** Holds [key] down until [up] completes, this is cancelled or the link drops; returns when the
+   *  key is up again. Released only after the hold reached the core, so a quick tap cannot slip
+   *  in before it and leave the key held. */
+  suspend fun hold(key: Int, up: Deferred<*>) = command(whileRunning = {
+    try {
+      up.await()
+    } finally {
+      native?.unhold()
+    }
+  }) { it.hold(key) }
+
   suspend fun finish() = command { it.finish() }
 
   /** Planning owed after a dropped link: 1 / 0, -1 = none (see scraper_c.h). Hand a remembered
@@ -176,7 +192,9 @@ class CoreSession(
     get() = native?.owedPlanning() ?: -1
     set(v) { native?.setOwedPlanning(v) }
 
-  private suspend fun command(start: (CoreNative) -> Int): CoreResult {
+  /** Starts a command and waits for it; [whileRunning] runs once it reached the core and is
+   *  cancelled when the command is done. */
+  private suspend fun command(whileRunning: (suspend () -> Unit)? = null, start: (CoreNative) -> Int): CoreResult {
     val n = native ?: return CoreResult.ConnectFailed
     if (pending != null) return CoreResult.InProgress
     val d = CompletableDeferred<CoreResult>()
@@ -189,7 +207,14 @@ class CoreSession(
     // The core completes [d] on its own thread. Resume on Default, never on that thread: a
     // caller without a dispatcher (Swift, a UI test) would otherwise run on and could close
     // the session from the core's thread (it joins itself and aborts).
-    return withContext(Dispatchers.Default) { d.await() }
+    return withContext(Dispatchers.Default) {
+      val w = whileRunning?.let { launch { it() } }
+      try {
+        d.await()
+      } finally {
+        w?.cancel()
+      }
+    }
   }
 
   fun status(): CoreStatus = native?.let { CoreStatus.fromJson(it.statusJson()) } ?: CoreStatus()

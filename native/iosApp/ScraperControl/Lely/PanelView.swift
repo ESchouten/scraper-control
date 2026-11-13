@@ -86,8 +86,7 @@ struct PanelView: View {
 
   private func key(_ k: PanelKey, enabled: Bool) -> some View {
     Button {
-      UISelectionFeedbackGenerator().selectionChanged()
-      Task { app.show(try? await flow.press(key: k.key)) }
+      flow.keyTapped(key: k.key) { app.show($0) }
     } label: {
       // A flexible shape sets the key's size (a third of the row, 1.25 : 1); the face sits on top.
       // aspectRatio on the face itself shrank every key to its icon inside the ScrollView.
@@ -102,11 +101,30 @@ struct PanelView: View {
         )
         .shadow(color: .black.opacity(0.18), radius: 4, y: 3)
     }
-    .buttonStyle(.plain)
+    .buttonStyle(HoldStyle { pressed in
+      if pressed {
+        UISelectionFeedbackGenerator().selectionChanged()
+        flow.keyDown(key: k.key) { app.show($0) }
+      } else {
+        flow.keyUp()
+      }
+    })
     .disabled(!enabled)
     .opacity(enabled ? 1 : 0.45)
     .accessibilityLabel(k.label)
     .testId(k.testId)
+  }
+
+  /// Holds the key down on the robot as long as the finger is on it, as on the robot's own panel
+  /// (in manual control the robot drives while Start/Stop is held). The button's action catches
+  /// a press too quick for isPressed to change.
+  private struct HoldStyle: ButtonStyle {
+    let onPressed: (Bool) -> Void
+    func makeBody(configuration: Configuration) -> some View {
+      configuration.label
+        .brightness(configuration.isPressed ? -0.08 : 0)
+        .onChange(of: configuration.isPressed) { pressed in onPressed(pressed) }
+    }
   }
 
   @ViewBuilder private func face(_ key: RobotKey) -> some View {

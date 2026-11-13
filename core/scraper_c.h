@@ -72,6 +72,7 @@ enum {
   SCRAPER_CMD_STOP = 6,
   SCRAPER_CMD_ROUTES = 7,
   SCRAPER_CMD_ANSWER_STOP = 8,
+  SCRAPER_CMD_HOLD = 9,
 };
 
 /* pin: the robot's PIN ("" or NULL = none). image_version: 9 bytes from last
@@ -100,6 +101,11 @@ SCRAPER_API int32_t scraper_stop_route(scraper_session* s);
  * pressed if the question is not on the screen. */
 SCRAPER_API int32_t scraper_answer_stop(scraper_session* s, int32_t finish);
 SCRAPER_API int32_t scraper_press(scraper_session* s, int32_t key); /* the driver's panel key codes */
+/* Hold a key down as on the robot's own panel (in manual control the robot drives while
+ * Start/Stop is held), until scraper_unhold, the link drops or 2 minutes pass; on_done
+ * comes after the key went up. scraper_unhold does not wait and may come from any thread. */
+SCRAPER_API int32_t scraper_hold(scraper_session* s, int32_t key);
+SCRAPER_API void scraper_unhold(scraper_session* s);
 /* Read what routes A..D consist of (HANDM. ROUTE), then back as before. Afterwards
  * scraper_routes_json gives {"A":"1","B":"2 3","C":"1 2 3","D":"4"} ("{}" before). */
 SCRAPER_API int32_t scraper_read_routes(scraper_session* s);

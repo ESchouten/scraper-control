@@ -35,7 +35,9 @@ import nl.eschouten.scraper.core.c.scraper_link_down
 import nl.eschouten.scraper.core.c.scraper_new
 import nl.eschouten.scraper.core.c.scraper_on_progress
 import nl.eschouten.scraper.core.c.scraper_press
+import nl.eschouten.scraper.core.c.scraper_hold
 import nl.eschouten.scraper.core.c.scraper_release
+import nl.eschouten.scraper.core.c.scraper_unhold
 import nl.eschouten.scraper.core.c.scraper_result_text_lang
 import nl.eschouten.scraper.core.c.scraper_set_language
 import nl.eschouten.scraper.core.c.scraper_set_planning
@@ -73,6 +75,8 @@ private class IosCore(
   override fun readRoutes() = scraper_read_routes(s)
   override fun routesJson() = text { buf, size -> scraper_routes_json(s, buf, size) }
   override fun press(key: Int) = scraper_press(s, key)
+  override fun hold(key: Int) = scraper_hold(s, key)
+  override fun unhold() = scraper_unhold(s)
   override fun finish() = scraper_finish(s)
   override fun setOwedPlanning(owed: Int) = scraper_set_owed_planning(s, owed)
   override fun owedPlanning() = scraper_owed_planning(s)
