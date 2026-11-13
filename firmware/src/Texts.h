@@ -48,7 +48,7 @@ struct Texts {
 static const Texts kNl = {
     "nl",
     "HOUD VAST", "Tijdpad", "Handbed.", "Instellen", "Route",
-    "Verbinden", "Pincode controleren", "Wachten op het paneel", "Status lezen", "Tijdpad omzetten",
+    "Verbinden", "Pincode controleren", "Synchroniseren met robot", "Status lezen", "Tijdpad omzetten",
     "Tijdpad tijdelijk uitzetten", "Routemenu openen", "Afronden", "Veiligheidsvraag: Ja", "Route kiezen",
     "Start indrukken", "Vraag over het tijdpad beantwoorden", "Stap", "van", "Even geduld...",
     "Tijdpad", "Aan", "Uit", "Volgende rit", "Route", "Actie", "Accu robot",
@@ -81,7 +81,7 @@ static const Texts kNl = {
 static const Texts kEn = {
     "en",
     "HOLD", "Schedule", "Manual", "Settings", "Route",
-    "Connecting", "Checking PIN", "Waiting for the panel", "Reading status", "Switching schedule",
+    "Connecting", "Checking PIN", "Syncing with robot", "Reading status", "Switching schedule",
     "Pausing schedule", "Opening route menu", "Finishing", "Safety question: Yes", "Choosing route",
     "Pressing Start", "Answering the schedule question", "Step", "of", "Please wait...",
     "Schedule", "On", "Off", "Next run", "Route", "Action", "Robot battery",
