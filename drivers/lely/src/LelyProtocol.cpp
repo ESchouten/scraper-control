@@ -85,17 +85,27 @@ void Screen::clear() { items_.clear(); areas_.clear(); images_.clear(); version_
 void Screen::feed(const uint8_t d[8]) {
   if (d[0] != 3) return;
   uint8_t op = d[1];
-  version_++;
+  // version() counts redraws only. The home screen rewrites its clock every second and the
+  // battery voltage about every 250 ms (captures/, 2026-11-05): a text written again in the
+  // same place with the same length is such a live value and does not count.
+  auto put = [this](int y, int x, const std::string& t) {
+    auto it = items_.find({y, x});
+    if (it == items_.end() || it->second.size() != t.size()) version_++;
+    items_[{y, x}] = t;
+  };
   if (op == 1) {
     items_.clear(); areas_.clear(); images_.clear();
+    version_++;
   } else if (op == 36) {                       // image from the robot's image set: y, x, number
+    auto it = images_.find({d[2], d[3]});
+    if (it == images_.end() || it->second != d[4]) version_++;
     images_[{d[2], d[3]}] = d[4];
   } else if (op == 30) {                       // text start: y, x, font
     inText_ = true; curY_ = d[2]; curX_ = d[3]; buf_.clear();
     // A redrawn row loses its selection bar (seen 2026-11-05 in Instellingen/Taal: the robot
     // redraws the rows, then inverts only the new one). The header bar (y <= 1) stays.
     for (auto it = areas_.begin(); it != areas_.end();)
-      it = it->op == 37 && it->y > 1 && curY_ >= it->y - 2 && curY_ < it->y + it->h - 1 ? areas_.erase(it) : std::next(it);
+      it = it->op == 37 && it->y > 1 && curY_ >= it->y - 2 && curY_ < it->y + it->h - 1 ? (version_++, areas_.erase(it)) : std::next(it);
   } else if (op == 31 && inText_) {            // text chunk, 0-terminated
     for (int i = 2; i < 8; i++) {
       if (d[i] == 0) {
@@ -103,7 +113,7 @@ void Screen::feed(const uint8_t d[8]) {
         size_t start = 0; int line = 0;
         while (true) {
           size_t cr = buf_.find('\r', start);
-          items_[{curY_ + 8 * line, curX_}] = buf_.substr(start, cr == std::string::npos ? std::string::npos : cr - start);
+          put(curY_ + 8 * line, curX_, buf_.substr(start, cr == std::string::npos ? std::string::npos : cr - start));
           if (cr == std::string::npos) break;
           start = cr + 1; line++;
         }
@@ -113,8 +123,9 @@ void Screen::feed(const uint8_t d[8]) {
       buf_.push_back((char)d[i]);
     }
   } else if (op == 32) {                       // single char
-    items_[{d[2], d[3]}] = std::string(1, (char)d[5]);
+    put(d[2], d[3], std::string(1, (char)d[5]));
   } else if (op == 13 || op == 15 || op == 33 || op == 37) {
+    version_++;
     Area a{op, d[2], d[3], d[4], d[5], d[6]};
     auto inside = [&a](int y, int x) { return x >= a.x && x < a.x + a.w && y >= a.y - 2 && y <= a.y + a.h; };
     if (op == 13) {                            // wipe area: text and selection bars inside it go

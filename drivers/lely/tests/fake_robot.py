@@ -127,6 +127,17 @@ class FakeRobot:
         # slow=True behaves like the real robot over BLE (seen 2026-11-05): a redraw arrives in
         # pieces over ~0.5 s, and keys pressed before it is done are ignored.
         self.slow, self._busy_until, self._lock = slow, 0.0, threading.Lock()
+        self._live = False
+
+    def _live_values(self):
+        # The real home screen (captures/, 2026-11-05) rewrites the battery voltage about every
+        # 250 ms and the clock every second, also when nothing else changes.
+        n = 0
+        while self._live:
+            time.sleep(0.25)
+            if self.mode == "home" and time.monotonic() >= self._busy_until:
+                n += 1
+                self._send(*(text(3, 4, f"20:21:{n // 4 % 60:02d}", 1) if n % 4 == 0 else []), *text(54, 76, "13500"))
 
     # transport interface
     async def connect(self): pass
@@ -141,7 +152,7 @@ class FakeRobot:
             try:
                 self.on(data)
             except (BrokenPipeError, ValueError):   # client already gone (slow-mode thread)
-                pass
+                self._live = False
 
     def draw(self):
         f = [can([3, 1])]
@@ -186,6 +197,9 @@ class FakeRobot:
             self._send(*f)
             return
         self._busy_until = time.monotonic() + 0.6
+        if not self._live:
+            self._live = True
+            threading.Thread(target=self._live_values, daemon=True).start()
 
         def pieces():                 # four pieces, 0.12 s apart
             n = (len(f) + 3) // 4

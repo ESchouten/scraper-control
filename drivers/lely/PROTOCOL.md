@@ -41,6 +41,10 @@ Safety rules (the same in every implementation):
    leaves the schedule off. The middle choice (a submenu with manual and a pause in minutes)
    is not offered.
 2. After every key, wait for the **expected screen** (not for a fixed time).
+   The robot sends a new screen in pieces and ignores keys until it is done, so after the
+   expected screen also wait until it stops redrawing (400 ms without a change). The home
+   screen rewrites its clock every second and its battery voltage about every 250 ms: such a
+   rewrite (same place, same length) is not a redraw.
 3. If a step before Start does not show the expected screen: back to the home screen, schedule
    back as it was, report the error.
 4. After Start: only the schedule question is answered; if it does not appear, nothing more is

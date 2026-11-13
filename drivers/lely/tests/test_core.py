@@ -1,7 +1,7 @@
 """The Lely core (C++) against the simulated robot, through host_main.cpp, and real screens
 from the robot through replay.cpp.
 Run: python3 drivers/lely/tests/test_core.py"""
-import os, struct, subprocess, sys, tempfile
+import os, struct, subprocess, sys, tempfile, time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DRIVER = os.path.dirname(HERE)
@@ -42,6 +42,12 @@ def drive(robot_kwargs, pin="4321", version="-", cmd=("status",), owed=None):
                 coro.send(None)
             except StopIteration:
                 pass
+    with robot._lock:   # the slow robot's clock thread stops writing to the closed pipe
+        robot._live = False
+        try:
+            proc.stdin.close()
+        except BrokenPipeError:
+            pass
     err = proc.stderr.read().decode()
     proc.wait()
     return robot, err
@@ -132,9 +138,14 @@ if __name__ == "__main__":
     check("hold left: planning off -> on", r.mode == "home" and r.planning and "RESULT ok" in e, e)
     r, e = drive({"mode": "driving"}, cmd=("toggle",))
     check("hold left while driving: nothing pressed", r.pressed == [] and "RESULT robot is bezig" in e, e)
-    # Like the real robot (2026-11-05): redraws arrive in pieces, keys during a redraw are ignored.
+    # Like the real robot (2026-11-05): redraws arrive in pieces, keys during a redraw are ignored,
+    # and the home screen keeps rewriting its clock and battery voltage.
+    t0 = time.monotonic()
     r, e = drive({"planning": True, "slow": True}, cmd=("route", "B"))
+    took = time.monotonic() - t0
     check("slow robot: route B, planning on -> Ja", r.mode == "driving" and r.sel == 1 and r.answer == "ja" and not r.ignored, e)
+    # 6 redraws of ~0.5 s plus 0.4 s quiet each; the clock and battery must not hold it up (was 12 s).
+    check(f"slow robot: route B started in {took:.1f} s (< 8 s)", took < 8, e)
     r, e = drive({"planning": False, "slow": True}, cmd=("route", "C"))
     check("slow robot: route C, planning off -> Nee", r.mode == "driving" and r.sel == 2 and r.answer == "nee" and not r.ignored, e)
     r, e = drive({"planning": True, "slow": True}, cmd=("toggle",))
