@@ -3,9 +3,6 @@
 // there (a scan skips it); a driver that talks another way adds a kind here and its link.
 package nl.eschouten.scraper.link
 
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -52,17 +49,19 @@ internal expect suspend fun findClassicRobots(spec: LinkSpec.BtSerial): List<Fou
 /** A classic Bluetooth link to [id]; null where the platform has none. */
 internal expect fun btSerialLink(spec: LinkSpec.BtSerial, id: String): RobotLink?
 
-/** Robots nearby over every kind this platform can do, at once. A robot found over more than
- *  one keeps the driver's preferred kind. Strongest first. [name]: the advertised name, if known. */
-suspend fun scanRobots(name: String? = null): List<FoundRobot> = coroutineScope {
-  driverLinks.map { spec ->
-    async {
-      when (spec) {
-        is LinkSpec.BleSerial -> findRobots(spec, name)
-        is LinkSpec.BtSerial -> findClassicRobots(spec)
-      }
+/** Robots nearby, strongest first: kind by kind in the driver's order, and the first kind that
+ *  finds any is the answer. So a robot that speaks more than one goes over the preferred, and a
+ *  classic search (which spoils a BLE scan running next to it) only runs when BLE found none.
+ *  [name]: the advertised name, if known. */
+suspend fun scanRobots(name: String? = null): List<FoundRobot> {
+  for (spec in driverLinks) {
+    val found = when (spec) {
+      is LinkSpec.BleSerial -> findRobots(spec, name)
+      is LinkSpec.BtSerial -> findClassicRobots(spec)
     }
-  }.awaitAll().flatten().distinctBy { it.id.lowercase() }.sortedByDescending { it.rssi }
+    if (found.isNotEmpty()) return found.sortedByDescending { it.rssi }
+  }
+  return emptyList()
 }
 
 /** A link to the robot remembered as [id], found over [kind] ("" = the driver's preferred kind). */
