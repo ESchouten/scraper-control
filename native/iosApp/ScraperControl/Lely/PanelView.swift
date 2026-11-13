@@ -123,7 +123,7 @@ struct PanelView: View {
     func makeBody(configuration: Configuration) -> some View {
       configuration.label
         .brightness(configuration.isPressed ? -0.08 : 0)
-        .onChange(of: configuration.isPressed) { _, pressed in onPressed(pressed) }
+        .onChange(of: configuration.isPressed) { pressed in onPressed(pressed) }
     }
   }
 
