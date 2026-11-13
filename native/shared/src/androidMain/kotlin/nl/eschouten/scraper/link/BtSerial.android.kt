@@ -37,7 +37,7 @@ internal actual suspend fun findClassicRobots(spec: LinkSpec.BtSerial): List<Fou
   val receiver = object : BroadcastReceiver() {
     override fun onReceive(context: Context, i: Intent) {
       val d = device(i) ?: return
-      // a robot that is LE only is the BLE scan's
+      // not LE only: this search runs only when BLE found nothing; an older board may say dual or unknown
       if (d.type == BluetoothDevice.DEVICE_TYPE_LE || !d.address.lowercase().startsWith(spec.addressPrefix)) return
       val rssi = i.getShortExtra(BluetoothDevice.EXTRA_RSSI, (-127).toShort()).toInt()
       found[d.address] = FoundRobot(d.address, d.name.orEmpty(), rssi, spec.kind)
