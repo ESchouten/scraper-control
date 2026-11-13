@@ -9,7 +9,7 @@
 
 namespace lely {
 
-// The link to the robot. Buttons: BleSerialLink (firmware/lib). Apps and Python: HostTransport
+// The link to the robot. Buttons: BtLink (firmware/lib). Apps and Python: HostTransport
 // (scraper_c.cpp). Tests: a pipe to the simulated robot.
 class Transport {
  public:

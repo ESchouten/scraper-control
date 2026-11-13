@@ -2,4 +2,5 @@
 #pragma once
 #include "M5Unified.h"
 struct Preferences { void begin(const char*,bool); size_t getBytesLength(const char*); void getBytes(const char*,void*,size_t);
- void putBytes(const char*,const void*,size_t); String getString(const char*,const char*); void putString(const char*,const String&); };
+ void putBytes(const char*,const void*,size_t); String getString(const char*,const char*); void putString(const char*,const String&);
+ bool getBool(const char*,bool); void putBool(const char*,bool); };
