@@ -114,6 +114,22 @@ def test_image_version_is_remembered():
     run(go()); assert h["r"].images_sent == 0       # second time: skipped
 
 
+
+def test_bluetooth_that_fails_twice_is_tried_again():
+    tries = []
+    def factory(address, on_data):
+        robot = FakeRobot(address, on_data)
+        if len(tries) < 2:
+            async def fail(): raise OSError("connection failed")
+            robot.connect = fail
+        tries.append(robot)
+        return robot
+    api.BleTransport = factory
+    async def go():
+        async with Robot(pin="4321", address=ADDR) as robot:
+            return robot.status()
+    assert run(go()).planning is True and len(tries) == 3
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

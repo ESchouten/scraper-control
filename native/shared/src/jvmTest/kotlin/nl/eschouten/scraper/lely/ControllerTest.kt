@@ -8,6 +8,7 @@ import nl.eschouten.scraper.app.*
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -148,6 +149,40 @@ class ControllerTest {
     val o = c.refresh()
     assertFalse(o.ok)
     assertEquals(Problem.NotFound, o.problem)
+  }
+
+  /** Bluetooth that fails [failures] times, then works (Erik 2026-11-13: the next press did). */
+  private fun flaky(failures: Int): () -> Int {
+    var opened = 0
+    LelyDiscovery.linkProvider = LinkProvider(
+      link = { id -> if (opened++ < failures) Unreachable(id) else SimulatorLink(id = id).also { links += it } },
+      robots = Simulator.robots,
+      scanDelayMs = 10,
+    )
+    return { opened }
+  }
+
+  private class Unreachable(override val id: String) : RobotLink {
+    override val notifications = emptyFlow<ByteArray>()
+    override suspend fun connect() = error("connection failed")
+    override suspend fun awaitClosed() {}
+    override suspend fun write(frame: ByteArray) {}
+    override suspend fun disconnect() {}
+  }
+
+  @Test fun bluetoothThatFailsTwiceIsTriedAgain() = runBlocking {
+    val opened = flaky(2)
+    val o = controller().startRoute("C")
+    assertTrue(o.ok, o.message)
+    assertEquals(3, opened())
+  }
+
+  @Test fun bluetoothThatKeepsFailingGivesUpAfterThreeTries() = runBlocking {
+    val opened = flaky(10)
+    val o = controller().startRoute("C")
+    assertFalse(o.ok)
+    assertEquals(Problem.NotFound, o.problem)
+    assertEquals(3, opened())
   }
 
   @Test fun rememberedImageVersionIsSaved() = runBlocking {

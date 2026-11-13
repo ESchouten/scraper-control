@@ -96,7 +96,11 @@ bool BtLink::connect() {
     std::lock_guard<std::mutex> g(mu_);
     inbox_.clear();
   }
-  if (classic_ ? connectClassic() : connectBle()) return true;
+  // Bluetooth sometimes fails once and works the next time: three tries, a second apart.
+  for (int i = 0; i < 3; i++) {
+    if (i) delay(1000);
+    if (classic_ ? connectClassic() : connectBle()) return true;
+  }
   // Robot moved or answers another way now: search once and retry.
   std::string keepAddress = address_;
   bool keepClassic = classic_;

@@ -171,15 +171,24 @@ class Robot:
         candidates = [self.address] if self.address else [a for a in [disc.load_cached()] if a]
         for addr in candidates:
             try:
-                self._link = self._make_link(addr, on_data)
-                await self._link.connect()
+                await self._link_to(addr, on_data)
                 self.address = addr
                 return
             except Exception:
                 if self.address:
                     raise
         addr = await disc.resolve(self.name)
-        self._link = self._make_link(addr, on_data)
-        await self._link.connect()
+        await self._link_to(addr, on_data)
         self.address = addr
         disc.save_cached(addr)
+
+    async def _link_to(self, addr: str, on_data) -> None:
+        """Bluetooth sometimes fails once and works the next time: three tries, a second apart."""
+        for i in range(3):
+            self._link = self._make_link(addr, on_data)
+            try:
+                return await self._link.connect()
+            except Exception:
+                if i == 2:
+                    raise
+                await asyncio.sleep(1)

@@ -388,19 +388,32 @@ class RobotController(
       save()
     }
     set(LinkState.Connecting)
-    val r = p.type.openSession(
-      p,
-      onStep = { s ->
-        steps = steps.filter { it.percent == null } + s
-        emit()
-      },
-      onChanged = { changed ->
-        settings.update(changed)
-        save()
-      },
-    )
-    robot = r
-    r.connect()
+    // Bluetooth sometimes fails once and works the next time: three tries, a second apart.
+    var r: ScraperSession
+    var tries = 0
+    while (true) {
+      r = settings.robot.type.openSession(
+        settings.robot,
+        onStep = { s ->
+          steps = steps.filter { it.percent == null } + s
+          emit()
+        },
+        onChanged = { changed ->
+          settings.update(changed)
+          save()
+        },
+      )
+      robot = r
+      try {
+        r.connect()
+        break
+      } catch (e: ScraperException) {
+        if (e.fault != ScraperFault.NotFound || ++tries == 3) throw e
+        runCatching { r.disconnect() }
+        steps = emptyList()
+        delay(1_000)
+      }
+    }
     scope.launch {
       r.awaitClosed()
       if (robot === r) {
