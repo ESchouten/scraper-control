@@ -360,7 +360,7 @@ class RobotController(
     } catch (e: kotlinx.coroutines.CancellationException) {
       throw e
     } catch (e: Exception) {
-      Outcome(false, tr.noConnection, problem = Problem.NotFound)
+      Outcome(false, tr.noConnection(e.message), problem = Problem.NotFound)
     }
     last = out
     if (record != null) {

@@ -207,7 +207,7 @@ void Robot::payBack() {
 }
 
 void Robot::disconnect() {
-  if (driving_) driveEnd();
+  holdEnd();
   connected_ = false;
   t_.disconnect();
 }
@@ -403,39 +403,44 @@ Result Robot::enterManual() {
 Result Robot::manualKey(Key k) {
   if (k != Key::Soft1 && k != Key::Soft2 && k != Key::Soft3) return fail(Result::Unexpected, tr("alleen softkeys", "soft keys only"));
   if (!inManual()) return fail(Result::Busy, tr("niet in handbediening; niets gedrukt", "not in manual control; nothing pressed"));
-  if (driving_) return fail(Result::Busy, tr("rijdt; eerst loslaten", "driving; release first"));
+  if (held_) return fail(Result::Busy, tr("rijdt; eerst loslaten", "driving; release first"));
   tap(k, [](const Screen&) { return false; }, 300);
   return Result::Ok;
 }
 
 Result Robot::driveBegin() {
   if (!inManual()) return fail(Result::Busy, tr("niet in handbediening; niets gedrukt", "not in manual control; nothing pressed"));
-  if (driving_) return Result::Ok;
-  t_.write(key(0, Key::StartStop));
-  driving_ = true;
-  lastRepeat_ = t_.now();
+  if (driving()) return Result::Ok;
+  holdBegin(Key::StartStop);
   say(tr("rijden: start ingedrukt", "drive: start pressed"));
   return Result::Ok;
+}
+
+void Robot::holdBegin(Key k) {
+  holdEnd();
+  t_.write(key(0, k));
+  held_ = (int)k;
+  lastRepeat_ = t_.now();
 }
 
 void Robot::driveHold(uint32_t ms) {
   uint32_t end = t_.now() + ms;
   do {
-    if (!t_.linkUp()) { driving_ = false; return; }
-    if (driving_ && t_.now() - lastRepeat_ >= 100) {
+    if (!t_.linkUp()) { held_ = 0; return; }
+    if (held_ && t_.now() - lastRepeat_ >= 100) {
       lastRepeat_ = t_.now();
-      t_.write(key(1, Key::StartStop));
+      t_.write(key(1, (Key)held_));
     }
     keepAlive();
     t_.pump(10);
   } while ((int32_t)(t_.now() - end) < 0);
 }
 
-void Robot::driveEnd() {
-  if (!driving_) return;
-  t_.write(key(7, Key::StartStop));
-  driving_ = false;
-  say(tr("rijden: start losgelaten", "drive: start released"));
+void Robot::holdEnd() {
+  if (!held_) return;
+  if (held_ == (int)Key::StartStop) say(tr("rijden: start losgelaten", "drive: start released"));
+  t_.write(key(7, (Key)held_));
+  held_ = 0;
 }
 
 Result Robot::exitManual() {

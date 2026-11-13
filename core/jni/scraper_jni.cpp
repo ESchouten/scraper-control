@@ -139,6 +139,8 @@ jint JNI_FN(nativeStopRoute)(JNIEnv*, jobject, jlong h) { return scraper_stop_ro
 jint JNI_FN(nativeAnswerStop)(JNIEnv*, jobject, jlong h, jboolean finish) { return scraper_answer_stop(S(h)->s, finish ? 1 : 0); }
 jint JNI_FN(nativeReadRoutes)(JNIEnv*, jobject, jlong h) { return scraper_read_routes(S(h)->s); }
 jint JNI_FN(nativePress)(JNIEnv*, jobject, jlong h, jint key) { return scraper_press(S(h)->s, key); }
+jint JNI_FN(nativeHold)(JNIEnv*, jobject, jlong h, jint key) { return scraper_hold(S(h)->s, key); }
+void JNI_FN(nativeUnhold)(JNIEnv*, jobject, jlong h) { scraper_unhold(S(h)->s); }
 jint JNI_FN(nativeFinish)(JNIEnv*, jobject, jlong h) { return scraper_finish(S(h)->s); }
 void JNI_FN(nativeSetOwedPlanning)(JNIEnv*, jobject, jlong h, jint owed) { scraper_set_owed_planning(S(h)->s, owed); }
 jint JNI_FN(nativeOwedPlanning)(JNIEnv*, jobject, jlong h) { return scraper_owed_planning(S(h)->s); }

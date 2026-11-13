@@ -2,6 +2,7 @@
 // (C++); this class only joins it to a [RobotLink].
 package nl.eschouten.scraper.core
 
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -121,6 +122,10 @@ class Robot(
     return core?.routes() ?: emptyMap()
   }
   suspend fun press(key: RobotKey) = run { it.press(key.code) }
+
+  /** [key] held down as on the robot's own panel until [up] completes: in manual control the
+   *  robot drives while Start/Stop is held. Returns after the key went up. */
+  suspend fun hold(key: RobotKey, up: Deferred<*>) = run { it.hold(key.code, up) }
 
   /** Leaves the robot as it was found: back to the home screen from a safe menu and the
    *  planning as it was at connect (unless [setPlanning] changed it on purpose). */

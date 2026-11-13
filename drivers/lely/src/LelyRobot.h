@@ -108,13 +108,16 @@ class Robot {
   // Soft1 = left motor on/off, Soft2 = forward/backward, Soft3 = right motor on/off.
   // Settings only, nothing moves. Busy if HANDBEDIENING is not on the screen.
   Result manualKey(Key k);
-  // The robot drives while Start/Stop is held: driveBegin sends "down", driveHold keeps it
-  // held (repeat every 100 ms) and must be called in a loop, driveEnd
-  // sends "up". disconnect() and exitManual() also end a drive.
+  // A key held as on the robot's own panel: holdBegin sends "down", driveHold keeps it held
+  // (repeat every 100 ms) and must be called in a loop, holdEnd sends "up". The robot drives
+  // while Start/Stop is held in manual control: driveBegin checks that screen first.
+  // disconnect() and exitManual() also end a hold.
+  void holdBegin(Key k);
+  void holdEnd();
   Result driveBegin();
   void driveHold(uint32_t ms);
-  void driveEnd();
-  bool driving() const { return driving_; }
+  void driveEnd() { holdEnd(); }
+  bool driving() const { return held_ == (int)Key::StartStop; }
   ManualState manualState() const { return screen.manual(); }
   bool linked() { return t_.linkUp(); }
   // Leave HANDBEDIENING: Esc back to the home screen (via the main menu if needed) and
@@ -162,7 +165,8 @@ class Robot {
   std::string err_;
   int granted_ = -1;              // -1 waiting, 0 no, 1 yes
   bool versionChanged_ = false, connected_ = false;
-  bool driving_ = false, manualWasOn_ = false;
+  int held_ = 0;   // the key held down, 0 = none
+  bool manualWasOn_ = false;
   int planningAtConnect_ = -1;      // 1 / 0 as found at connect, -1 unknown
   int owed_ = -1;                   // see owedPlanning()
   uint32_t lastRepeat_ = 0;

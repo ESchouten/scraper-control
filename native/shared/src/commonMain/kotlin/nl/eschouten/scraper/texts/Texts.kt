@@ -118,6 +118,9 @@ class Tr(val code: String) {
   val statusUpdated: String get() = t("Status bijgewerkt", "Status updated")
   val noRobotNearby: String get() = t("Geen robot gevonden in de buurt.", "No robot found nearby.")
   val noConnection: String get() = t("Geen verbinding met de robot.", "No connection with the robot.")
+  /** With the system's own words, when it gave any (e.g. a Windows error code). */
+  fun noConnection(detail: String?): String =
+    if (detail.isNullOrBlank()) noConnection else t("Geen verbinding met de robot ($detail).", "No connection with the robot ($detail).")
   // ---- home-screen widget -------------------------------------------------------------
   fun widgetConnecting(title: String): String = t("$title: verbinden...", "$title: connecting...")
   val bluetoothOffShort: String get() = t("Bluetooth uit", "Bluetooth off")

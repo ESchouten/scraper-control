@@ -4,6 +4,10 @@ package nl.eschouten.scraper.lely
 import nl.eschouten.scraper.core.*
 import nl.eschouten.scraper.link.*
 
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -78,6 +82,25 @@ class FakeRobotTest {
   @Test fun manualMenuPressesNothing() {
     val l = run(FakeRobotOptions(mode = "manual")) { r -> assertFailsWith<RobotBusy> { r.startRoute('A') } }
     assertTrue("enter" !in l.log.pressed)
+  }
+
+  @Test fun holdDrivesUntilReleased() {
+    val l = run(FakeRobotOptions(mode = "manual")) { r ->
+      val up = CompletableDeferred<Unit>()
+      coroutineScope {
+        launch { delay(400); up.complete(Unit) }
+        r.hold(RobotKey.StartStop, up)
+      }
+    }
+    val d = l.log.drive
+    assertEquals(0, d.first())
+    assertEquals(7, d.last())
+    assertTrue(d.count { it == 1 } >= 2, d.toString()) // repeats while held, as the robot's own panel
+  }
+
+  @Test fun quickTapStillHoldsBriefly() {
+    val l = run(FakeRobotOptions(mode = "manual")) { r -> r.hold(RobotKey.StartStop, CompletableDeferred(Unit)) }
+    assertEquals(listOf(0, 7), listOf(l.log.drive.first(), l.log.drive.last()))
   }
 
   @Test fun englishRobot() {
