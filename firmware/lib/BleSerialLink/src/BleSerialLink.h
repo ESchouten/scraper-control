@@ -22,6 +22,9 @@ class BleSerialLink : public driver::Transport {
  public:
   // All robots nearby, strongest first (for choosing one on the device).
   static std::vector<FoundRobot> scanAll(uint32_t ms = 5000);
+  // Stops the BLE stack and gives its memory back (for wifi); the next connect or scan starts
+  // it again. No link may be in use.
+  static void release();
 
   // address: the robot's address, or "" to scan for one.
   explicit BleSerialLink(std::string address = "");

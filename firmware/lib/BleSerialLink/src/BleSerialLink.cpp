@@ -26,6 +26,10 @@ void startBle() {
 
 BleSerialLink::BleSerialLink(std::string address) : address_(lower(address)) {}
 
+void BleSerialLink::release() {
+  if (NimBLEDevice::isInitialized()) NimBLEDevice::deinit(true);
+}
+
 bool BleSerialLink::scan() {   // the strongest robot nearby
   std::vector<FoundRobot> found = scanAll();
   if (found.empty()) return false;

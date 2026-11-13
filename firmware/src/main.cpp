@@ -656,9 +656,16 @@ static void chooseRobot() {
 // buttons (TextEditor), WPS = press the router's WPS button. Kept in flash like the PIN.
 static String wifiSsid, wifiPass;
 
+// Wifi on, after the BLE stack gave its memory back: wifi, TLS and BLE next to the screen do
+// not fit (updates crashed, Erik 2026-11-13). The next robot session starts BLE again.
+static void wifiOn() {
+  BleSerialLink::release();
+  WiFi.mode(WIFI_STA);
+}
+
 static bool wifiUp(uint32_t ms = 20000) {
   if (wifiSsid.isEmpty()) return false;
-  WiFi.mode(WIFI_STA);
+  wifiOn();
   WiFi.begin(wifiSsid.c_str(), wifiPass.c_str());
   uint32_t t0 = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - t0 < ms) delay(100);
@@ -754,7 +761,7 @@ static bool typePassword(const String& ssid, String& out) {
 
 static void chooseNetwork() {
   busy(tx->wifiRow, tx->scanningWifi);
-  WiFi.mode(WIFI_STA);
+  wifiOn();
   struct Net {
     String ssid;
     int rssi;
@@ -801,7 +808,7 @@ static void wpsSetup() {
   using namespace ui;
   busy(tx->wpsWord, tx->wpsPress);
   hint(tx->pressToStop);
-  WiFi.mode(WIFI_STA);
+  wifiOn();
   wpsResult = 0;
   int handler = WiFi.onEvent(onWps);
   esp_wps_config_t cfg;
@@ -932,6 +939,7 @@ static bool signatureOk(const Manifest& m) {
 // 0 installed (boots next time), 1 failed, 2 not the signed file, 3 stopped by a button
 static int download(const Manifest& m, bool stopOnPress = false) {
   using namespace ui;
+  Serial.printf("update: %u bytes heap free, %u largest\n", (unsigned)ESP.getFreeHeap(), (unsigned)ESP.getMaxAllocHeap());
   WiFiClientSecure client;
   long length = -1;
   if (!httpsGet(client, String(String(kReleaseUrl) + m.file.c_str()).c_str(), length) ||
@@ -1113,7 +1121,7 @@ static void autoUpdateTick() {
   if (!autoConnecting) {
     if (lastWifiTry && now - lastWifiTry < kWifiTryEveryMs) return;
     lastWifiTry = now;
-    WiFi.mode(WIFI_STA);
+    wifiOn();
     WiFi.begin(wifiSsid.c_str(), wifiPass.c_str());
     autoConnecting = true;
     autoStarted = now;
@@ -1227,7 +1235,7 @@ static void settingsMenu() {
   bool owed = owedPlanning >= 0 && millis() - owedAt < kOwedForMs;
   bool looking = !wifiSsid.isEmpty() && !owed;
   if (looking) {
-    WiFi.mode(WIFI_STA);
+    wifiOn();
     WiFi.begin(wifiSsid.c_str(), wifiPass.c_str());
   }
   drawSettings(looking ? tx->settingsWifiLooking : nullptr);
