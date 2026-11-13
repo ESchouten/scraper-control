@@ -36,6 +36,7 @@ import nl.eschouten.scraper.core.c.scraper_new
 import nl.eschouten.scraper.core.c.scraper_on_progress
 import nl.eschouten.scraper.core.c.scraper_press
 import nl.eschouten.scraper.core.c.scraper_hold
+import nl.eschouten.scraper.core.c.scraper_release
 import nl.eschouten.scraper.core.c.scraper_unhold
 import nl.eschouten.scraper.core.c.scraper_result_text_lang
 import nl.eschouten.scraper.core.c.scraper_set_language
