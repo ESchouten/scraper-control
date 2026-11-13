@@ -27,7 +27,7 @@
 #include "PinEditor.h"
 #include "ReleaseKey.h"
 #include "ScraperDriver.h"   // the robot driver (platformio.ini)
-#include "BleSerialLink.h"
+#include "BtLink.h"
 #include "TextEditor.h"
 #include "Texts.h"
 #include "Ui.h"
@@ -45,6 +45,7 @@ using namespace driver;
 static Preferences prefs;
 static uint8_t storedVersion[9] = {'D', 'I', 'S', '0', '0', '1', '8', 'T', '4'};   // learned 2026-11-03
 static std::string savedAddress;
+static bool savedClassic = false;   // the robot was found over classic Bluetooth
 static String pin;                 // from flash; set on the PIN screen
 // What the last route button did besides starting: stopped a running route, and then the
 // user's answer to the robot's "route afmaken?" (Erik 2026-11-11).
@@ -128,8 +129,15 @@ static String volts(int mv) { return String(mv / 1000) + (tx == &kNl ? "," : "."
 
 // Home: the robot as last seen (status only, no instructions), the three hold keys (outlined,
 // they fill up while held) and the three routes (red: a tap starts or stops that route).
+// The memory margin in the log (Bluetooth, wifi and the screen share little RAM).
+static void logHeap(const char* where) {
+  Serial.printf("heap %s: %u free, %u largest\n", where, (unsigned)ESP.getFreeHeap(), (unsigned)ESP.getMaxAllocHeap());
+}
+
 static void idle() {
   using namespace ui;
+  static uint32_t heapAt = 0;
+  if (!heapAt || millis() - heapAt > 60000) { heapAt = millis() | 1; logHeap("home"); }
   homeDrawnAt = millis();
   ui::Screen scr("Scraper Control");
   card(10, 56, 300, 54, kCard);
@@ -336,7 +344,7 @@ static Result runOnce(const String& title, Kind kind, const Job& job, Status& st
   int done = 0, last = 0;
   bool planningOn = true;   // until the robot's screen tells
   drawProgress(title, nextStep(kind, 0, planningOn), 0, expectedSteps(kind, planningOn));
-  BleSerialLink link(savedAddress);
+  BtLink link(savedAddress, savedClassic);
   Robot robot(link, encryptPin(pin.c_str()), storedVersion);
   if (owedPlanning >= 0 && millis() - owedAt < kOwedForMs) robot.setOwedPlanning(owedPlanning);
   robot.onOwed = [](int v) {
@@ -363,6 +371,7 @@ static Result runOnce(const String& title, Kind kind, const Job& job, Status& st
   };
 
   Result r = robot.connect();
+  logHeap("session");
   if (r == Result::Ok) r = job(robot);
   err = robot.lastError();
   if (r == Result::Ok || r == Result::Unexpected) robot.finish();   // planning as found
@@ -375,9 +384,11 @@ static Result runOnce(const String& title, Kind kind, const Job& job, Status& st
   }
 
   if (robot.imageVersionChanged()) prefs.putBytes("imgver", storedVersion, 9);
-  if (r != Result::ConnectFailed && link.address() != savedAddress) {
+  if (r != Result::ConnectFailed && (link.address() != savedAddress || link.classic() != savedClassic)) {
     savedAddress = link.address();
+    savedClassic = link.classic();
     prefs.putString("addr", savedAddress.c_str());
+    prefs.putBool("classic", savedClassic);
   }
   return r;
 }
@@ -627,7 +638,7 @@ static std::vector<String> robotLines(const std::vector<FoundRobot>& found) {
 
 static void chooseRobot() {
   busy(tx->robotWord, tx->searching);
-  std::vector<FoundRobot> found = BleSerialLink::scanAll(5000);
+  std::vector<FoundRobot> found = BtLink::scanAll(5000);
   if (found.size() > 4) found.resize(4);
   if (found.empty()) {
     notice(tx->robotWord, tx->noneFound, 2);
@@ -639,7 +650,9 @@ static void chooseRobot() {
   int c = chooseFrom(tx->robotWord, robotLines(found), sel);
   if (c < 0) return;
   savedAddress = c == 0 ? std::string() : found[c - 1].address;   // empty: the strongest at the next connect
+  savedClassic = c != 0 && found[c - 1].classic;
   prefs.putString("addr", savedAddress.c_str());
+  prefs.putBool("classic", savedClassic);
   M5.Speaker.tone(2000, 100);
   using namespace ui;
   {
@@ -659,7 +672,7 @@ static String wifiSsid, wifiPass;
 // Wifi on, after the BLE stack gave its memory back: wifi, TLS and BLE next to the screen do
 // not fit (updates crashed, Erik 2026-11-13). The next robot session starts BLE again.
 static void wifiOn() {
-  BleSerialLink::release();
+  BtLink::release();
   WiFi.mode(WIFI_STA);
 }
 
@@ -1153,7 +1166,7 @@ static const uint32_t kSyncEveryMs = 15UL * 60 * 1000;
 static uint32_t nextSync = 15000;   // the first read soon after starting
 
 static bool readRobotQuietly() {
-  BleSerialLink link(savedAddress);
+  BtLink link(savedAddress, savedClassic);
   Robot robot(link, encryptPin(pin.c_str()), storedVersion);
   robot.lang = langFromCode(tx->code);
   robot.log = [](const std::string& s) { Serial.println(s.c_str()); };
@@ -1274,6 +1287,7 @@ void setup() {
   prefs.begin(DRIVER_STORE, false);
   if (prefs.getBytesLength("imgver") == 9) prefs.getBytes("imgver", storedVersion, 9);
   savedAddress = prefs.getString("addr", "").c_str();
+  savedClassic = prefs.getBool("classic", false);
   pin = prefs.getString("pin", "");
   wifiSsid = prefs.getString("wssid", "");
   wifiPass = prefs.getString("wpass", "");

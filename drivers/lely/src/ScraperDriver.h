@@ -1,5 +1,5 @@
 // What the M5Stack buttons use of this driver: the robot API (LelyRobot.h) as driver::, reached
-// over the "ble-serial" link (driver::kBle, firmware/lib/BleSerialLink).
+// over BLE (driver::kBle) or classic Bluetooth (driver::kSppService): firmware/lib/BtLink.
 #pragma once
 #include "LelyRobot.h"
 
