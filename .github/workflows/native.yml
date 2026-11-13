@@ -1,6 +1,7 @@
 name: native
 # The native apps (native/): shared Kotlin module with the robot driver (C++), Compose UI for
-# Android and desktop, SwiftUI for iOS.
+# Android and desktop, SwiftUI for iOS. On a push: Linux (all tests, desktop, Android) and the
+# Windows build; run it by hand for the Windows scenario tests and iOS too.
 on:
   push:
     paths: ["native/**", "core/**", "drivers/**", ".github/workflows/native.yml"]
@@ -70,7 +71,8 @@ jobs:
           distribution: temurin
           java-version: "17"
       - uses: gradle/actions/setup-gradle@v4
-      - name: Scenario tests on Windows (the core built by the Windows compiler, demo robot)
+      - name: Scenario tests on Windows (the core built by the Windows compiler, demo robot); by hand, like iOS
+        if: github.event_name == 'workflow_dispatch'
         working-directory: native
         shell: bash
         run: ./gradlew :composeApp:jvmTest --console=plain
@@ -107,6 +109,11 @@ jobs:
           java-version: "17"
       - uses: gradle/actions/setup-gradle@v4
         if: steps.changed.outputs.run == 'yes'
+      - uses: actions/cache@v4 # the Kotlin/Native compiler and its iOS libraries (~1 GB)
+        if: steps.changed.outputs.run == 'yes'
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ hashFiles('native/build.gradle.kts') }}
       - name: iOS app (SwiftUI + Shared framework) and its scenario tests (XCUITest, demo robot)
         if: steps.changed.outputs.run == 'yes'
         working-directory: native/iosApp

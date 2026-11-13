@@ -2,6 +2,7 @@
 from the robot through replay.cpp.
 Run: python3 drivers/lely/tests/test_core.py"""
 import os, struct, subprocess, sys, tempfile, time
+from concurrent.futures import ThreadPoolExecutor
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DRIVER = os.path.dirname(HERE)
@@ -23,6 +24,7 @@ def drive(robot_kwargs, pin="4321", version="-", cmd=("status",), owed=None):
     env = dict(os.environ)
     if owed is not None:
         env["LELY_OWED"] = str(owed)
+    t0 = time.monotonic()
     proc = subprocess.Popen([BIN, pin_hex, version, *cmd], stdin=subprocess.PIPE,
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
 
@@ -50,6 +52,7 @@ def drive(robot_kwargs, pin="4321", version="-", cmd=("status",), owed=None):
             pass
     err = proc.stderr.read().decode()
     proc.wait()
+    robot.took = time.monotonic() - t0
     return robot, err
 
 
@@ -88,139 +91,120 @@ def replay():
           and "Work" in sel, "\n".join(out))
 
 
+# Every case: its own simulated robot and core, so they run side by side.
+CASES = []
+
+
+def case(name, robot, cmd=("status",), ok=lambda r, e: True, **drive_kw):
+    CASES.append((name, robot, cmd, ok, drive_kw))
+
+
+case("status, image version learned", {}, ok=lambda r, e: "STATUS planning=1 next=21:00:00 route=01 ride=10 batt=13500 busy=0" in e
+     and "VERSION 444953303031385434 changed=1" in e and r.images_sent == 52)
+case("image version skips download", {}, version="444953303031385434", ok=lambda r, e: r.images_sent == 0 and "changed=0" in e)
+case("wrong pin", {}, pin="0000", ok=lambda r, e: "RESULT pincode geweigerd" in e)
+case("route C, planning on -> Ja", {"planning": True}, ("route", "C"),
+     lambda r, e: r.mode == "driving" and r.sel == 2 and r.answer == "ja" and "RESULT ok" in e)
+case("route B, planning off -> Nee", {"planning": False}, ("route", "B"), lambda r, e: r.mode == "driving" and r.sel == 1 and r.answer == "nee")
+case("dry run restores planning", {"planning": True}, ("dry", "D"),
+     lambda r, e: r.mode == "home" and r.planning and r.answer is None and "RESULT ok" in e)
+case("busy: nothing pressed", {"mode": "driving"}, ("route", "A"), lambda r, e: r.pressed == [] and "RESULT robot is bezig" in e)
+case("route button while driving: Start/Stop only; 'route afmaken?' (Ja = drive on) is never answered", {"mode": "driving"},
+     ("button", "A"), lambda r, e: r.pressed == ["start_stop"] and r.stopped and r.mode == "abort" and "RESULT ok" in e)
+case("route button while driving, no question: Start/Stop once", {"mode": "driving", "stop_asks": False}, ("button", "A"),
+     lambda r, e: r.pressed == ["start_stop"] and r.stopped and r.mode == "home" and "RESULT ok" in e)
+case("slow robot: route button while driving stops it", {"mode": "driving", "slow": True}, ("button", "A"),
+     lambda r, e: r.stopped and r.mode == "abort" and "soft1" not in r.pressed and "RESULT ok" in e)
+# The user's answer to "route afmaken?" (Erik 2026-11-11), passed on 1:1.
+case("stop, then 'niet afmaken': Nee, planning stays off", {"mode": "driving", "planning": True}, ("stop-answer", "c"),
+     lambda r, e: r.pressed == ["start_stop", "soft3"] and r.mode == "home" and not r.planning and "STOPQ 1" in e and "RESULT ok" in e)
+case("stop, then 'afmaken': Ja, drives on", {"mode": "driving"}, ("stop-answer", "f"),
+     lambda r, e: r.pressed == ["start_stop", "soft1"] and r.mode == "driving" and "RESULT ok" in e)
+case("status on the stop question: stopq=1, busy", {"mode": "abort"}, ok=lambda r, e: "stopq=1" in e and "busy=1" in e)
+case("connect onto the stop question: answer passed on", {"mode": "abort"}, ("answer", "c"),
+     lambda r, e: r.pressed == ["soft3"] and r.mode == "home" and not r.planning)
+for mode in ("home", "driving", "question", "manual"):
+    case(f"answer on {mode}: nothing pressed", {"planning": False, "mode": mode}, ("answer", "f"),
+         lambda r, e: "soft1" not in r.pressed and "RESULT robot is bezig" in e)
+case("route button on the home screen: starts the route", {"planning": True}, ("button", "C"),
+     lambda r, e: r.mode == "driving" and r.sel == 2 and not r.stopped)
+for mode in ("home", "menu", "mainmenu", "manual", "question"):
+    # finish() may still go home from a menu afterwards, but Start/Stop is never pressed
+    case(f"stop on {mode}: Start/Stop not pressed", {"planning": False, "mode": mode}, ("stop",),
+         lambda r, e: "start_stop" not in r.pressed and "RESULT robot is bezig" in e)
+case("hold left: planning on -> off", {"planning": True}, ("toggle",), lambda r, e: r.mode == "home" and not r.planning and "RESULT ok" in e)
+case("hold left: planning off -> on", {"planning": False}, ("toggle",), lambda r, e: r.mode == "home" and r.planning and "RESULT ok" in e)
+case("hold left while driving: nothing pressed", {"mode": "driving"}, ("toggle",), lambda r, e: r.pressed == [] and "RESULT robot is bezig" in e)
+# Like the real robot (2026-11-05): redraws arrive in pieces, keys during a redraw are ignored,
+# and the home screen keeps rewriting its clock and battery voltage. 6 redraws of ~0.5 s plus
+# 0.4 s quiet each; the clock and battery must not hold it up (was 12 s).
+case("slow robot: route B, planning on -> Ja, started in < 8 s", {"planning": True, "slow": True}, ("route", "B"),
+     lambda r, e: r.mode == "driving" and r.sel == 1 and r.answer == "ja" and not r.ignored and r.took < 8)
+case("slow robot: route C, planning off -> Nee", {"planning": False, "slow": True}, ("route", "C"),
+     lambda r, e: r.mode == "driving" and r.sel == 2 and r.answer == "nee" and not r.ignored)
+case("slow robot: hold left, planning on -> off", {"planning": True, "slow": True}, ("toggle",),
+     lambda r, e: r.mode == "home" and not r.planning and "RESULT ok" in e)
+case("slow robot: status complete", {"slow": True}, ok=lambda r, e: "planning=1 next=21:00:00" in e and "batt=13500" in e)
+# Manual drive (HANDBEDIENING): planning off, Enter, Enter, Ja; Start held = drive.
+for slow in (False, True):
+    case(f"manual{' (slow)' if slow else ''}: L toggled, drove, back home, planning on again; state read from the screen",
+         {"planning": True, "slow": slow}, ("manual",),
+         lambda r, e: not r.left and r.right and not r.forward and r.drive_events[0] == 0 and r.drive_events[-1] == 7
+         and r.drive_events.count(1) >= 3 and r.mode == "home" and r.planning and "INMANUAL 1" in e and "RESULT ok" in e
+         and "MANUAL start left=0 right=0 forward=1" in e and "MANUAL L+dir left=1 right=0 forward=0" in e
+         and "MANUAL R, L again left=0 right=1 forward=0" in e)
+case("manual with planning off: stays off afterwards", {"planning": False}, ("manual",),
+     lambda r, e: r.mode == "home" and not r.planning and "RESULT ok" in e)
+case("manual: disconnect while driving still sends up", {"planning": False}, ("manual-drop",),
+     lambda r, e: r.drive_events[0] == 0 and r.drive_events[-1] == 7)
+case("manual while driving a route: nothing pressed", {"mode": "driving"}, ("manual",), lambda r, e: r.pressed == [] and "RESULT robot is bezig" in e)
+case("route from the main menu: started", {"planning": False, "mode": "mainmenu", "slow": True}, ("route", "A"),
+     lambda r, e: r.mode == "driving" and r.sel == 0 and "RESULT ok" in e)
+# Leaving: the robot as found (home screen, planning as at connect), except on purpose.
+case("panel left in the route menu: back home, planning on again", {"planning": True}, ("keys", "se"), lambda r, e: r.mode == "home" and r.planning)
+case("panel left in the main menu: back home, planning on again", {"planning": True}, ("keys", "sb"), lambda r, e: r.mode == "home" and r.planning)
+case("panel switched planning on: off again as found", {"planning": False}, ("keys", "s"), lambda r, e: r.mode == "home" and not r.planning)
+case("hold left (on purpose): planning stays off", {"planning": True}, ("toggle",), lambda r, e: not r.planning and "RESULT ok" in e)
+for planning in (True, False):
+    case(f"read routes (planning {'on' if planning else 'off'}): contents, back home as before", {"planning": planning}, ("routes",),
+         lambda r, e, planning=planning: "ROUTES A=1|B=2 3|C=1 2 3|D=4" in e and r.mode == "home" and r.planning == planning
+         and r.sel == 0 and not {"soft1", "soft3", "down"} & set(r.pressed) and r.answer is None and "OWED -1" in e)
+case("read routes while driving: nothing pressed", {"mode": "driving"}, ("routes",), lambda r, e: r.pressed == [] and "RESULT robot is bezig" in e)
+# A dropped link: the host keeps what the robot is owed and the next session pays it back.
+case("link drops in the route menu: planning on is owed", {"planning": True}, ("keys-drop", "se"), lambda r, e: r.mode == "menu" and "OWED 1" in e)
+case("clean finish: nothing owed", {"planning": True}, ("keys", "se"), lambda r, e: r.mode == "home" and r.planning and "OWED -1" in e)
+case("next session pays back: route menu -> home, planning on", {"planning": False, "mode": "menu"}, ("nofinish",), owed=1,
+     ok=lambda r, e: r.mode == "home" and r.planning and "OWED -1" in e)
+case("next session pays back: HANDBEDIENING -> home, planning on", {"planning": False, "mode": "manual"}, ("nofinish",), owed=1,
+     ok=lambda r, e: r.mode == "home" and r.planning and "OWED -1" in e)
+case("next session pays back: planning off as it was", {"planning": True}, ("nofinish",), owed=0,
+     ok=lambda r, e: r.mode == "home" and not r.planning and "OWED -1" in e)
+case("robot drives: nothing pressed, still owed", {"mode": "driving"}, ("nofinish",), owed=1, ok=lambda r, e: r.pressed == [] and "OWED 1" in e)
+case("route started: the robot handles the planning, nothing owed", {"planning": True}, ("route", "A"),
+     lambda r, e: r.mode == "driving" and "OWED -1" in e)
+case("link drops in manual drive: planning on is owed", {"planning": True}, ("manual-drop",), lambda r, e: "OWED 1" in e)
+case("planning switched on purpose: nothing owed", {"planning": True}, ("toggle",), lambda r, e: not r.planning and "OWED -1" in e)
+# Any robot language: screens are recognised by layout (en as captured, xx = nonsense).
+for lang in ("en", "xx"):
+    case(f"{lang}: status by position", {"lang": lang}, ok=lambda r, e: "STATUS planning=1 next=21:00:00 route=01 ride=10 batt=13500 busy=0" in e)
+    case(f"{lang}: route C, planning on -> yes", {"lang": lang, "planning": True, "slow": True}, ("route", "C"),
+         lambda r, e: r.mode == "driving" and r.sel == 2 and r.answer == "ja")
+    case(f"{lang}: route B, planning off -> no", {"lang": lang, "planning": False}, ("route", "B"),
+         lambda r, e: r.mode == "driving" and r.sel == 1 and r.answer == "nee")
+    case(f"{lang}: manual drive and back", {"lang": lang, "planning": True, "slow": True}, ("manual",),
+         lambda r, e: r.mode == "home" and r.planning and r.drive_events[-1] == 7 and "MANUAL L+dir left=1 right=0 forward=0" in e and "RESULT ok" in e)
+    case(f"{lang}: route from the main menu", {"lang": lang, "planning": False, "mode": "mainmenu"}, ("route", "A"),
+         lambda r, e: r.mode == "driving" and r.sel == 0)
+    case(f"{lang}: driving: nothing pressed", {"lang": lang, "mode": "driving"}, ("route", "A"), lambda r, e: r.pressed == [] and "RESULT robot is bezig" in e)
+    case(f"{lang}: route button while driving stops it", {"lang": lang, "mode": "driving"}, ("button", "B"),
+         lambda r, e: r.pressed == ["start_stop"] and r.stopped and r.mode == "abort")
+
+
 if __name__ == "__main__":
     build()
-    r, e = drive({}, cmd=("status",))
-    check("status", "STATUS planning=1 next=21:00:00 route=01 ride=10 batt=13500 busy=0" in e, e)
-    check("image version learned", "VERSION 444953303031385434 changed=1" in e and r.images_sent == 52, e)
-    r, e = drive({}, version="444953303031385434", cmd=("status",))
-    check("image version skips download", r.images_sent == 0 and "changed=0" in e, e)
-    r, e = drive({}, pin="0000")
-    check("wrong pin", "RESULT pincode geweigerd" in e, e)
-    r, e = drive({"planning": True}, cmd=("route", "C"))
-    check("route C, planning on -> Ja", r.mode == "driving" and r.sel == 2 and r.answer == "ja" and "RESULT ok" in e, e)
-    r, e = drive({"planning": False}, cmd=("route", "B"))
-    check("route B, planning off -> Nee", r.mode == "driving" and r.sel == 1 and r.answer == "nee", e)
-    r, e = drive({"planning": True}, cmd=("dry", "D"))
-    check("dry run restores planning", r.mode == "home" and r.planning and r.answer is None and "RESULT ok" in e, e)
-    r, e = drive({"mode": "driving"}, cmd=("route", "A"))
-    check("busy: nothing pressed", r.pressed == [] and "RESULT robot is bezig" in e, e)
-    r, e = drive({"mode": "driving"}, cmd=("button", "A"))
-    check("route button while driving: Start/Stop only; 'route afmaken?' (Ja = drive on) is never answered",
-          r.pressed == ["start_stop"] and r.stopped and r.mode == "abort" and "RESULT ok" in e, e)
-    r, e = drive({"mode": "driving", "stop_asks": False}, cmd=("button", "A"))
-    check("route button while driving, no question: Start/Stop once",
-          r.pressed == ["start_stop"] and r.stopped and r.mode == "home" and "RESULT ok" in e, e)
-    r, e = drive({"mode": "driving", "slow": True}, cmd=("button", "A"))
-    check("slow robot: route button while driving stops it", r.stopped and r.mode == "abort" and "soft1" not in r.pressed and "RESULT ok" in e, e)
-    # The user's answer to "route afmaken?" (Erik 2026-11-11), passed on 1:1.
-    r, e = drive({"mode": "driving", "planning": True}, cmd=("stop-answer", "c"))
-    check("stop, then 'niet afmaken': Nee, planning stays off", r.pressed == ["start_stop", "soft3"] and r.mode == "home"
-          and not r.planning and "STOPQ 1" in e and "RESULT ok" in e, e)
-    r, e = drive({"mode": "driving"}, cmd=("stop-answer", "f"))
-    check("stop, then 'afmaken': Ja, drives on", r.pressed == ["start_stop", "soft1"] and r.mode == "driving" and "RESULT ok" in e, e)
-    r, e = drive({"mode": "abort"}, cmd=("status",))
-    check("status on the stop question: stopq=1, busy", "stopq=1" in e and "busy=1" in e, e)
-    r, e = drive({"mode": "abort"}, cmd=("answer", "c"))
-    check("connect onto the stop question: answer passed on", r.pressed == ["soft3"] and r.mode == "home" and not r.planning, e)
-    for mode in ("home", "driving", "question", "manual"):
-        r, e = drive({"planning": False, "mode": mode}, cmd=("answer", "f"))
-        check(f"answer on {mode}: nothing pressed", "soft1" not in r.pressed and "RESULT robot is bezig" in e, e)
-    r, e = drive({"planning": True}, cmd=("button", "C"))
-    check("route button on the home screen: starts the route", r.mode == "driving" and r.sel == 2 and not r.stopped, e)
-    for mode in ("home", "menu", "mainmenu", "manual", "question"):
-        r, e = drive({"planning": False, "mode": mode}, cmd=("stop",))
-        # finish() may still go home from a menu afterwards, but Start/Stop is never pressed
-        check(f"stop on {mode}: Start/Stop not pressed", "start_stop" not in r.pressed and "RESULT robot is bezig" in e, e)
-    r, e = drive({"planning": True}, cmd=("toggle",))
-    check("hold left: planning on -> off", r.mode == "home" and not r.planning and "RESULT ok" in e, e)
-    r, e = drive({"planning": False}, cmd=("toggle",))
-    check("hold left: planning off -> on", r.mode == "home" and r.planning and "RESULT ok" in e, e)
-    r, e = drive({"mode": "driving"}, cmd=("toggle",))
-    check("hold left while driving: nothing pressed", r.pressed == [] and "RESULT robot is bezig" in e, e)
-    # Like the real robot (2026-11-05): redraws arrive in pieces, keys during a redraw are ignored,
-    # and the home screen keeps rewriting its clock and battery voltage.
-    t0 = time.monotonic()
-    r, e = drive({"planning": True, "slow": True}, cmd=("route", "B"))
-    took = time.monotonic() - t0
-    check("slow robot: route B, planning on -> Ja", r.mode == "driving" and r.sel == 1 and r.answer == "ja" and not r.ignored, e)
-    # 6 redraws of ~0.5 s plus 0.4 s quiet each; the clock and battery must not hold it up (was 12 s).
-    check(f"slow robot: route B started in {took:.1f} s (< 8 s)", took < 8, e)
-    r, e = drive({"planning": False, "slow": True}, cmd=("route", "C"))
-    check("slow robot: route C, planning off -> Nee", r.mode == "driving" and r.sel == 2 and r.answer == "nee" and not r.ignored, e)
-    r, e = drive({"planning": True, "slow": True}, cmd=("toggle",))
-    check("slow robot: hold left, planning on -> off", r.mode == "home" and not r.planning and "RESULT ok" in e, e)
-    r, e = drive({"slow": True}, cmd=("status",))
-    check("slow robot: status complete", "planning=1 next=21:00:00" in e and "batt=13500" in e, e)
-    # Manual drive (HANDBEDIENING): planning off, Enter, Enter, Ja; Start held = drive.
-    for slow in (False, True):
-        r, e = drive({"planning": True, "slow": slow}, cmd=("manual",))
-        ev = r.drive_events
-        check(f"manual{' (slow)' if slow else ''}: L toggled, drove, back home, planning on again",
-              not r.left and r.right and not r.forward and ev[0] == 0 and ev[-1] == 7 and ev.count(1) >= 3 and r.mode == "home"
-              and r.planning and "INMANUAL 1" in e and "RESULT ok" in e, e)
-        check(f"manual{' (slow)' if slow else ''}: state read from the screen",
-              "MANUAL start left=0 right=0 forward=1" in e and "MANUAL L+dir left=1 right=0 forward=0" in e
-              and "MANUAL R, L again left=0 right=1 forward=0" in e, e)
-    r, e = drive({"planning": False}, cmd=("manual",))
-    check("manual with planning off: stays off afterwards", r.mode == "home" and not r.planning and "RESULT ok" in e, e)
-    r, e = drive({"planning": False}, cmd=("manual-drop",))
-    check("manual: disconnect while driving still sends up", r.drive_events[0] == 0 and r.drive_events[-1] == 7, e)
-    r, e = drive({"mode": "driving"}, cmd=("manual",))
-    check("manual while driving a route: nothing pressed", r.pressed == [] and "RESULT robot is bezig" in e, e)
-    r, e = drive({"planning": False, "mode": "mainmenu", "slow": True}, cmd=("route", "A"))
-    check("route from the main menu: started", r.mode == "driving" and r.sel == 0 and "RESULT ok" in e, e)
-    # Leaving: the robot as found (home screen, planning as at connect), except on purpose.
-    r, e = drive({"planning": True}, cmd=("keys", "se"))
-    check("panel left in the route menu: back home, planning on again", r.mode == "home" and r.planning, e)
-    r, e = drive({"planning": True}, cmd=("keys", "sb"))
-    check("panel left in the main menu: back home, planning on again", r.mode == "home" and r.planning, e)
-    r, e = drive({"planning": False}, cmd=("keys", "s"))
-    check("panel switched planning on: off again as found", r.mode == "home" and not r.planning, e)
-    r, e = drive({"planning": True}, cmd=("toggle",))
-    check("hold left (on purpose): planning stays off", not r.planning and "RESULT ok" in e, e)
-    for planning in (True, False):
-        r, e = drive({"planning": planning}, cmd=("routes",))
-        check(f"read routes (planning {'on' if planning else 'off'}): contents, back home as before",
-              "ROUTES A=1|B=2 3|C=1 2 3|D=4" in e and r.mode == "home" and r.planning == planning and r.sel == 0
-              and not {"soft1", "soft3", "down"} & set(r.pressed) and r.answer is None and "OWED -1" in e, e)
-    r, e = drive({"mode": "driving"}, cmd=("routes",))
-    check("read routes while driving: nothing pressed", r.pressed == [] and "RESULT robot is bezig" in e, e)
-    # A dropped link: the host keeps what the robot is owed and the next session pays it back.
-    r, e = drive({"planning": True}, cmd=("keys-drop", "se"))
-    check("link drops in the route menu: planning on is owed", r.mode == "menu" and "OWED 1" in e, e)
-    r, e = drive({"planning": True}, cmd=("keys", "se"))
-    check("clean finish: nothing owed", r.mode == "home" and r.planning and "OWED -1" in e, e)
-    r, e = drive({"planning": False, "mode": "menu"}, cmd=("nofinish",), owed=1)
-    check("next session pays back: route menu -> home, planning on", r.mode == "home" and r.planning and "OWED -1" in e, e)
-    r, e = drive({"planning": False, "mode": "manual"}, cmd=("nofinish",), owed=1)
-    check("next session pays back: HANDBEDIENING -> home, planning on", r.mode == "home" and r.planning and "OWED -1" in e, e)
-    r, e = drive({"planning": True}, cmd=("nofinish",), owed=0)
-    check("next session pays back: planning off as it was", r.mode == "home" and not r.planning and "OWED -1" in e, e)
-    r, e = drive({"mode": "driving"}, cmd=("nofinish",), owed=1)
-    check("robot drives: nothing pressed, still owed", r.pressed == [] and "OWED 1" in e, e)
-    r, e = drive({"planning": True}, cmd=("route", "A"))
-    check("route started: the robot handles the planning, nothing owed", r.mode == "driving" and "OWED -1" in e, e)
-    r, e = drive({"planning": True}, cmd=("manual-drop",))
-    check("link drops in manual drive: planning on is owed", "OWED 1" in e, e)
-    r, e = drive({"planning": True}, cmd=("toggle",))
-    check("planning switched on purpose: nothing owed", not r.planning and "OWED -1" in e, e)
-    # Any robot language: screens are recognised by layout (en as captured, xx = nonsense).
-    for lang in ("en", "xx"):
-        r, e = drive({"lang": lang}, cmd=("status",))
-        check(f"{lang}: status by position", "STATUS planning=1 next=21:00:00 route=01 ride=10 batt=13500 busy=0" in e, e)
-        r, e = drive({"lang": lang, "planning": True, "slow": True}, cmd=("route", "C"))
-        check(f"{lang}: route C, planning on -> yes", r.mode == "driving" and r.sel == 2 and r.answer == "ja", e)
-        r, e = drive({"lang": lang, "planning": False}, cmd=("route", "B"))
-        check(f"{lang}: route B, planning off -> no", r.mode == "driving" and r.sel == 1 and r.answer == "nee", e)
-        r, e = drive({"lang": lang, "planning": True, "slow": True}, cmd=("manual",))
-        check(f"{lang}: manual drive and back", r.mode == "home" and r.planning and r.drive_events[-1] == 7
-              and "MANUAL L+dir left=1 right=0 forward=0" in e and "RESULT ok" in e, e)
-        r, e = drive({"lang": lang, "planning": False, "mode": "mainmenu"}, cmd=("route", "A"))
-        check(f"{lang}: route from the main menu", r.mode == "driving" and r.sel == 0, e)
-        r, e = drive({"lang": lang, "mode": "driving"}, cmd=("route", "A"))
-        check(f"{lang}: driving: nothing pressed", r.pressed == [] and "RESULT robot is bezig" in e, e)
-        r, e = drive({"lang": lang, "mode": "driving"}, cmd=("button", "B"))
-        check(f"{lang}: route button while driving stops it", r.pressed == ["start_stop"] and r.stopped and r.mode == "abort", e)
+    with ThreadPoolExecutor(8) as pool:   # the cases wait on the robot's timing, not on the CPU
+        runs = list(pool.map(lambda c: drive(c[1], cmd=c[2], **c[4]), CASES))
+    for (name, _, _, ok, _), (r, e) in zip(CASES, runs):
+        check(name, ok(r, e), e)
     replay()
     print("all core tests passed")

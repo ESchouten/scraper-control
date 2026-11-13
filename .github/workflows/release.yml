@@ -67,6 +67,7 @@ jobs:
           test -n "$FIRMWARE_SIGNING_KEY" || { echo "secret FIRMWARE_SIGNING_KEY is missing"; exit 1; }
           mkdir out
           BIN="out/scraper-control-m5stack-core-$VERSION.bin"
+          grep -q "$VERSION" firmware/.pio/build/m5stack-core/firmware.bin || { echo "the firmware does not carry version $VERSION"; exit 1; }
           cp firmware/.pio/build/m5stack-core/firmware.bin "$BIN"
           echo "# Scraper Control $VERSION: one block per board" > out/update.ini
           python3 firmware/sign_release.py "$BIN" --board m5stack-core --key "$FIRMWARE_SIGNING_KEY" --version "$VERSION" --build "$BUILD" >> out/update.ini

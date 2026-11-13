@@ -1,13 +1,29 @@
 name: build
-# Tests the buttons' firmware and every robot driver, then builds the firmware (the apps: workflow
-# native). Download the build under Actions -> this run -> Artifacts.
-on: [push, pull_request, workflow_dispatch]
+# Tests the buttons' firmware and every robot driver, and builds the firmware, side by side
+# (the apps: workflow native). Download the build under Actions -> this run -> Artifacts.
+on:
+  push:
+    paths: ["firmware/**", "drivers/**", "core/**", "python/**", "tests/**", "native/gradle.properties", ".github/workflows/build.yml"]
+  pull_request:
+    paths: ["firmware/**", "drivers/**", "core/**", "python/**", "tests/**", "native/gradle.properties"]
+  workflow_dispatch:
 
 concurrency:
   group: build-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 
 jobs:
+  drivers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install cryptography
+      - name: Every robot driver's own tests (against its simulated robot), side by side
+        run: ls drivers/*/tests/test_*.py | xargs -P 4 -n 1 python
+
   firmware:
     runs-on: ubuntu-latest
     steps:
@@ -21,11 +37,14 @@ jobs:
         with:
           path: ~/.platformio
           key: pio-${{ hashFiles('firmware/platformio.ini') }}
+      - uses: actions/cache@v4 # what is compiled: only changed files compile again
+        with:
+          path: firmware/.pio/build
+          key: pio-build-${{ hashFiles('firmware/platformio.ini') }}-${{ github.sha }}
+          restore-keys: pio-build-${{ hashFiles('firmware/platformio.ini') }}-
       - run: pip install platformio cryptography
       - name: Firmware on a computer (editors, update manifest, syntax check)
         run: python tests/test_firmware.py
-      - name: Every robot driver's own tests (against its simulated robot)
-        run: for t in drivers/*/tests/test_*.py; do echo "== $t"; python "$t" || exit 1; done
       - name: Build the M5Stack firmware
         working-directory: firmware
         run: pio run

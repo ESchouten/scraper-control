@@ -1,6 +1,7 @@
 # PlatformIO pre-script: the firmware's version is the apps' version, MAJOR.MINOR from
 # native/gradle.properties (scraper.version) + the build number (commit count + buildBase):
-# 1.6.120, like the apps. FW_VERSION, FW_BUILD.
+# 1.6.120, like the apps. FW_VERSION, FW_BUILD, for main.cpp only: the number changes with every
+# commit, so as a flag for every file nothing (LVGL, M5GFX) would stay compiled between builds.
 import os
 import re
 import subprocess
@@ -15,5 +16,7 @@ try:
 except Exception:   # no git history (a source archive)
     build = "0"
 version = "%s.%s" % (props["version"].strip(), build)
-env.Append(CPPDEFINES=[("FW_VERSION", '\\"%s\\"' % version), ("FW_BUILD", build)])  # noqa: F821
+defines = [("FW_VERSION", '\\"%s\\"' % version), ("FW_BUILD", build)]
+env.AddBuildMiddleware(  # noqa: F821
+    lambda e, node: e.Object(node, CPPDEFINES=list(e["CPPDEFINES"]) + defines), "*src/main.cpp")
 print("firmware %s (%s)" % (version, build))

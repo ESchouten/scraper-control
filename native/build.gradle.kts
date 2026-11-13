@@ -27,3 +27,6 @@ extra["appVersion"] = "${providers.gradleProperty("scraper.version").get()}.$app
 // Android: the same SDK levels for the app and both libraries (*/android.gradle)
 extra["androidCompileSdk"] = 37
 extra["androidMinSdk"] = 24
+
+// Test classes in parallel JVMs: most tests wait on the simulated robot's timing, not the CPU.
+subprojects { tasks.withType<Test>().configureEach { maxParallelForks = Runtime.getRuntime().availableProcessors() } }
