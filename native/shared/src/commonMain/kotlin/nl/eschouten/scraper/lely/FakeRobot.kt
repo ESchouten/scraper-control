@@ -178,11 +178,11 @@ class FakeRobotLink(
     val f = mutableListOf(cr(3, 1))
     when (mode) {
       "home" -> {
-        f += text(3, 4, "20:21:19", 1) + text(3, 105, if (planning) " ON" else "OFF", 1)
-        f += text(14, 4, t.home)
-        f += text(14, 58, "21:00:00") + text(22, 94, "01") + text(30, 48, "------------")
-        f += text(38, 76, "    -") + text(46, 76, "   10") + text(54, 76, "13500")
-        f += cr(3, 37, 1, 1, 11, 126, 2)
+        // in the real robot's order: labels, header bar, ON/OFF, values, last the clock and the battery
+        f += text(14, 4, t.home) + cr(3, 37, 1, 1, 11, 126, 2)
+        f += text(3, 105, if (planning) " ON" else "OFF", 1)
+        f += text(46, 76, "   10") + text(14, 58, "21:00:00") + text(22, 94, "01") + text(38, 76, "    -")
+        f += text(30, 48, "------------") + text(3, 4, "20:21:19", 1) + text(54, 76, "13500")
       }
       "mainmenu" -> {
         t.main.forEachIndexed { i, m -> f += text(4 + 8 * i, 0, " " + m.padEnd(15)) }
@@ -264,7 +264,9 @@ class FakeRobotLink(
       "menu" -> when (k) {
         "up", "down" -> {
           sel = if (k == "down") minOf(3, sel + 1) else maxOf(0, sel - 1)
-          send(menuRows() + listOf(cr(3, 37, 16 + 8 * sel, 19, 8, 90, 1)))
+          val rows = menuRows()
+          val at = 4 * (sel + 1) // a row is 4 records; the invert comes right after its row
+          send(rows.take(at) + listOf(cr(3, 37, 16 + 8 * sel, 19, 8, 90, 1)) + rows.drop(at))
           return
         }
         "back" -> mode = "home"
