@@ -51,6 +51,7 @@ Result Robot::fail(Result r, const std::string& why) {
 
 // ---- incoming ------------------------------------------------------------------
 void Robot::onBytes(const uint8_t* d, size_t n) {
+  lastRx_ = t_.now();
   for (auto& m : parser_.feed(d, n)) {
     if (m.msgId == 2020) {
       granted_ = (!m.payload.empty() && m.payload[0] == 1) ? 1 : 0;
@@ -166,9 +167,13 @@ Result Robot::connect() {
   t_.write(connectPanel());
   connected_ = true;
   lastAlive_ = t_.now() - 1000;
-  // up to 90 s: a robot with a new image set sends its images first
-  if (!waitUntil([](const Screen& s) { return s.isHome() || s.isRouteMenu() || !s.lines().empty(); }, 90000))
-    return fail(Result::NoScreen, tr("geen scherm ontvangen", "no screen received"));
+  // A robot whose image set we lack sends it first (about 75 s over BLE, longer on a slow
+  // link): wait 90 s, and on while it is still sending, up to 4 minutes.
+  auto shown = [](const Screen& s) { return s.isHome() || s.isRouteMenu() || !s.lines().empty(); };
+  uint32_t start = lastRx_ = t_.now();
+  bool ok = waitUntil(shown, 90000);
+  while (!ok && t_.linkUp() && t_.now() - lastRx_ < 5000 && t_.now() - start < 240000) ok = waitUntil(shown, 5000);
+  if (!ok) return fail(Result::NoScreen, tr("geen scherm ontvangen", "no screen received"));
   settle();
   if (!screen.isHome() && !screen.isRouteMenu()) {
     waitUntil([](const Screen& s) { return s.isHome(); }, 1000);

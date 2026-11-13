@@ -164,6 +164,7 @@ class Robot {
   int owed_ = -1;                   // see owedPlanning()
   uint32_t lastRepeat_ = 0;
   uint32_t lastAlive_ = 0;
+  uint32_t lastRx_ = 0;             // when the robot last sent anything
 };
 
 }  // namespace lely

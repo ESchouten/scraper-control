@@ -171,7 +171,7 @@ class Tr(val code: String) {
   val stepAnswered: String get() = t("Vraag over het tijdpad beantwoord", "Schedule question answered")
   val stepRestored: String get() = t("Alles teruggezet", "Everything put back")
   val nextCheckPin: String get() = t("Pincode controleren", "Checking PIN")
-  val nextWaitPanel: String get() = t("Wachten op het paneel", "Waiting for the panel")
+  val nextWaitPanel: String get() = t("Wachten op het paneel (eerste keer ca. 1,5 min)", "Waiting for the panel (first time about 1.5 min)")
   val nextReadStatus: String get() = t("Status lezen", "Reading status")
   val nextPlanningOff: String get() = t("Tijdsplanning uitzetten", "Pausing schedule")
   val nextOpenMenu: String get() = t("Routemenu openen", "Opening route menu")
