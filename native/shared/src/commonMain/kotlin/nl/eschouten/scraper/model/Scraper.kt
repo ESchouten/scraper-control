@@ -37,7 +37,8 @@ data class ScraperStatus(
 )
 
 /** One step of a running command, for the progress bar. [id] is defined by the type. */
-data class RunStep(val id: String)
+/** [percent]: a step still under way (e.g. a sync), reported again as it goes; replaced by the next step. */
+data class RunStep(val id: String, val percent: Int? = null)
 
 /** What a command is about to do, so the type can describe its steps. */
 data class RunIntent(val route: String? = null, val dryRun: Boolean = false, val planningOn: Boolean? = null)

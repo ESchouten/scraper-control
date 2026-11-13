@@ -49,6 +49,7 @@ enum class Step {
   StartPressed = 8, // Start pressed, question shown
   Answered = 9,     // planning question answered: route is running
   Restored = 10,    // dry run / abort: back on home screen as before
+  Syncing = 11,     // the robot sends its image set (first connection): syncPercent()
   Manual = 11,      // HANDBEDIENING open (safety question answered with Ja)
 };
 
@@ -123,6 +124,8 @@ class Robot {
 
   const std::string& lastError() const { return err_; }
   bool imageVersionChanged() const { return versionChanged_; }
+  // How far the robot is with sending its image set, 0-100; -1 = not sending (or count unknown).
+  int syncPercent() const { return imageNr_ < 0 || images_ <= 0 ? -1 : imageNr_ >= images_ ? 100 : imageNr_ * 100 / images_; }
 
   Screen screen;
   Lang lang = Lang::Nl;                           // of lastError() and the log
@@ -164,6 +167,7 @@ class Robot {
   int owed_ = -1;                   // see owedPlanning()
   uint32_t lastRepeat_ = 0;
   uint32_t lastAlive_ = 0;
+  int images_ = 0, imageNr_ = -1;   // image set: count, number of the image now coming
   uint32_t lastRx_ = 0;             // when the robot last sent anything
 };
 

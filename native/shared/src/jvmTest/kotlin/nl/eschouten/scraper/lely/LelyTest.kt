@@ -70,6 +70,15 @@ class LelyTest {
     assertEquals("ja", rep.str("answer"))
   }
 
+  @Test fun firstConnectionReportsHowFarTheImageSyncIs() = runBlocking {
+    val percents = Collections.synchronizedList(mutableListOf<Int?>())
+    lateinit var robot: Robot
+    robot = Robot(SimulatorLink(), pin = "4321", onStep = { if (it == CoreStep.Syncing) percents.add(robot.status().syncPercent) })
+    robot.connect()
+    robot.disconnect()
+    assertEquals((0 until 52).map { it * 100 / 52 }, percents.toList())
+  }
+
   @Test fun routeBWithPlanningOffAnswersNeeAndDoesNotToggle() {
     val rep = drive(listOf("--planning", "off")) { it.startRoute('B') }
     assertEquals("nee", rep.str("answer"))

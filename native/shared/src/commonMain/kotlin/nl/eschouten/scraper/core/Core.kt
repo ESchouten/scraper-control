@@ -34,6 +34,7 @@ enum class CoreStep {
   StartPressed, // Start pressed, question shown
   Answered, // question answered: route is running
   Restored, // dry run / abort: back as before
+  Syncing, // the robot sends its image set (first connection), again per part: CoreStatus.syncPercent
 }
 
 /** Panel keys (docs/PROTOCOL.md). */
@@ -59,6 +60,8 @@ data class CoreStatus(
   val highlighted: String = "",
   /** The robot's own language: "nl", "en" or "" if not known. */
   val language: String = "",
+  /** How far the robot is with sending its image set (0-100), null when it is not. */
+  val syncPercent: Int? = null,
 ) {
   companion object {
     fun fromJson(json: String): CoreStatus {
@@ -72,6 +75,7 @@ data class CoreStatus(
         batteryMv = i("batteryMv")?.takeIf { it >= 0 },
         busy = b("busy") ?: true, driving = b("driving") ?: false, stopQuestion = b("stopQuestion") ?: false,
         screen = s("screen"), highlighted = s("highlighted"), language = s("language"),
+        syncPercent = i("sync")?.takeIf { it >= 0 },
       )
     }
   }

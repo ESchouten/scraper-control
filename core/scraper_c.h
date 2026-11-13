@@ -45,7 +45,8 @@ enum {
   SCRAPER_IN_PROGRESS = 100, /* returned by a command call while another one runs */
 };
 
-/* progress steps, reported to the progress callback while a command runs */
+/* progress steps, reported to the progress callback while a command runs; the status is
+ * up to date when it is called */
 enum {
   SCRAPER_STEP_LINKED = 1,
   SCRAPER_STEP_GRANTED = 2,
@@ -57,6 +58,7 @@ enum {
   SCRAPER_STEP_START_PRESSED = 8,
   SCRAPER_STEP_ANSWERED = 9,
   SCRAPER_STEP_RESTORED = 10,
+  SCRAPER_STEP_SYNCING = 11, /* again for every part; status "sync" = percent done, -1 = unknown */
 };
 typedef void (*scraper_progress_fn)(void* user, int32_t step);
 

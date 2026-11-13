@@ -35,8 +35,10 @@ data class Progress(val headline: String, val value: Float, val done: List<Strin
 
 fun progress(model: ScraperModel, steps: List<RunStep>, link: LinkState, intent: RunIntent, routeTitle: String): Progress {
   val total = model.expectedSteps(intent)
-  val v = ((steps.size + 0.5f) / (total + 1)).coerceIn(0.05f, 0.98f)
-  return Progress(currentStep(model, steps, link, intent) + "...", v, steps.map { model.stepLabel(it, routeTitle) })
+  val done = steps.filter { it.percent == null }
+  val part = (steps.lastOrNull()?.percent ?: 0) / 100f // a step under way (a sync) moves the bar on to the next
+  val v = ((done.size + 0.5f + part) / (total + 1)).coerceIn(0.05f, 0.98f)
+  return Progress(currentStep(model, steps, link, intent) + "...", v, done.map { model.stepLabel(it, routeTitle) })
 }
 
 data class InfoLine(val glyph: Glyph, val text: String)

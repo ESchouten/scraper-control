@@ -73,8 +73,12 @@ void Robot::onCan(const uint8_t d[8]) {
   } else if (k == 5 && s == 4) {             // robot tells its image set version
     if (d[2] == 0) memcpy(ver_, d + 3, 5);
     if (d[2] == 1) { memcpy(ver_ + 5, d + 3, 4); versionChanged_ = true; }
-  } else if (k == 5 && s == 2) {             // images done / skipped
+  } else if (k == 5 && s == 2) {             // the image count (d[2] == 1), or images done / skipped
+    if (d[2] == 1) images_ = d[3];
     t_.write(canReady());
+  } else if (k == 5 && s == 6) {             // the next image of the set starts: d[2] = its number
+    imageNr_ = d[2];
+    step(Step::Syncing);
   } else if (k == 3 && s == 20 && d[2] == 0 && d[3] == 0) {
     t_.write(contrast());
   } else if (k == 3) {

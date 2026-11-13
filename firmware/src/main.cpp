@@ -172,7 +172,7 @@ static const char* nextStep(Kind job, int last, bool planningOn) {
   switch (last) {
     case 0: return tx->connecting;
     case int(Step::Linked): return tx->checkingPin;
-    case int(Step::Granted): return tx->waitingPanel;
+    case int(Step::Granted): return tx->syncing;
     case int(Step::ScreenReady):
       if (job == Kind::Status) return tx->readingStatus;
       if (job == Kind::Planning) return tx->switchingPlanning;
@@ -346,6 +346,11 @@ static Result runOnce(const String& title, Kind kind, const Job& job, Status& st
   robot.lang = langFromCode(tx->code);
   robot.log = [](const std::string& s) { Serial.println(s.c_str()); };
   robot.onStep = [&](Step s) {
+    if (s == Step::Syncing) {   // first connection: the robot sends its image set, part by part
+      int p = robot.syncPercent();
+      drawProgress(title, p < 0 ? String(tx->syncing) : String(tx->syncing) + " " + p + "%", done, expectedSteps(kind, planningOn));
+      return;
+    }
     if (s == Step::ScreenReady) {
       Status now = robot.status();
       planningOn = now.planning != 0;

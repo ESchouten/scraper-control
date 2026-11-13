@@ -67,6 +67,7 @@ object LelyDiscovery : ScraperModel() {
     CoreStep.StartPressed -> tr.stepStartPressed
     CoreStep.Answered -> tr.stepAnswered
     CoreStep.Restored -> tr.stepRestored
+    CoreStep.Syncing -> tr.syncing(s.percent ?: 0)
     null -> s.id
   }
 
@@ -77,6 +78,7 @@ object LelyDiscovery : ScraperModel() {
       null -> tr.connecting
       CoreStep.Linked -> tr.nextCheckPin
       CoreStep.Granted -> tr.nextWaitPanel
+      CoreStep.Syncing -> tr.syncing(done.last().percent ?: 0)
       CoreStep.ScreenReady -> when {
         !route -> tr.nextReadStatus
         intent.planningOn == true -> tr.nextPlanningOff
@@ -141,7 +143,7 @@ class LelySession(
     val id = profile.robotId ?: throw ScraperException(ScraperFault.NotFound, tr.noRobotNearby)
     val link = sim?.link?.invoke(id) ?: openLink(profile.link, id, profile.robotName.ifEmpty { null })
     val r = Robot(
-      link, pin = profile.pin, imageVersion = imageVersion(), language = tr.code, onStep = { onStep(RunStep(it.name)) },
+      link, pin = profile.pin, imageVersion = imageVersion(), language = tr.code, onStep = { onStep(RunStep(it.name, if (it == CoreStep.Syncing) robot?.status()?.syncPercent ?: 0 else null)) },
       owedPlanning = owedPlanning(), onOwed = ::keepOwed,
     )
     robot = r

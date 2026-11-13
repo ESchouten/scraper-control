@@ -82,7 +82,7 @@ std::string jsonString(const std::string& s) {
   return o + "\"";
 }
 
-std::string statusJson(const Status& st, const std::string& screen, const std::string& highlighted) {
+std::string statusJson(const Status& st, const std::string& screen, const std::string& highlighted, int sync) {
   std::string o = "{";
   o += "\"planning\":" + std::to_string(st.planning);
   o += ",\"clock\":" + jsonString(st.clock);
@@ -98,6 +98,7 @@ std::string statusJson(const Status& st, const std::string& screen, const std::s
   o += ",\"screen\":" + jsonString(screen);
   o += ",\"highlighted\":" + jsonString(highlighted);
   o += ",\"language\":" + jsonString(st.language);
+  o += ",\"sync\":" + std::to_string(sync);
   return o + "}";
 }
 
@@ -151,7 +152,7 @@ struct scraper_session {
   }
 
   void snapshot() {   // worker thread
-    std::string js = statusJson(robot.status(), robot.screen.text(), robot.screen.highlighted());
+    std::string js = statusJson(robot.status(), robot.screen.text(), robot.screen.highlighted(), robot.syncPercent());
     std::lock_guard<std::mutex> g(mu);
     status = js;
     error = robot.lastError();
@@ -216,7 +217,7 @@ void scraper_free(scraper_session* s) { delete s; }
 void scraper_on_progress(scraper_session* s, scraper_progress_fn fn) {
   if (!s) return;
   void* user = s->user;
-  if (fn) s->robot.onStep = [fn, user](Step st) { fn(user, (int32_t)st); };
+  if (fn) s->robot.onStep = [s, fn, user](Step st) { s->snapshot(); fn(user, (int32_t)st); };
   else s->robot.onStep = nullptr;
 }
 

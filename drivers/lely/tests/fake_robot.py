@@ -113,6 +113,7 @@ class FakeRobot:
     def __init__(self, address=None, on_data=None, *, planning=True, mode="home", version=b"DIS0018T4", slow=False, lang="nl", stop_asks=True):
         self.on, self.planning, self.mode, self.sel = on_data, planning, mode, 0
         self.version, self.pressed, self.answer, self.images_sent = version, [], None, 0
+        self._images_announced = False
         self.ignored = []          # keys that came while the robot was still redrawing (slow mode)
         # manual drive (HANDBEDIENING, seen 2026-11-05): soft keys toggle, Start held = drive
         self.left = self.right = False
@@ -219,7 +220,10 @@ class FakeRobot:
         elif d[0] == 5 and d[1] == 1 and d[2] == 0:
             self._got_v1 = bytes(d[3:8])
         elif d[0] == 5 and d[1] == 3:
-            self.draw()
+            if self._images_announced:            # the ready after the image count asks for the images
+                self._images_announced = False
+            else:
+                self.draw()
         ev, key = struct.unpack_from("<HH", d)
         if hasattr(self, "_got_v2"):
             got = self._got_v1 + self._got_v2
@@ -228,8 +232,9 @@ class FakeRobot:
                 self._send(can([5, 2, 0, 0]))
             else:
                 self.images_sent = 52
-                self._send(can([5, 4, 0] + list(self.version[:5])), can([5, 4, 1] + list(self.version[5:9])),
-                           can([5, 2, 0, 0]))
+                self._images_announced = True
+                self._send(can([5, 2, 1, 52]), *[can([5, 6, i, i]) for i in range(52)],
+                           can([5, 4, 0] + list(self.version[:5])), can([5, 4, 1] + list(self.version[5:9])), can([5, 2, 0, 0]))
         if ln == 4 and self.mode == "manual" and KEY.get(key) == "start_stop":
             self.drive_events.append(ev)
             return

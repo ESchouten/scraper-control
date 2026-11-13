@@ -110,8 +110,8 @@ PIN: AES-128-CBC, IV = 16 zero bytes, PKCS7, with a fixed key: the build secret 
 | → | `06 01` len 2 and `06 02 lvl 00` len 3 | keep-alive, every second |
 | ← | `05 00` | robot asks for the **image version** |
 | → | `05 01 00 v0..v4` len 8 + `05 01 01 v5..v8 00` len 7 | our image version (9 bytes) |
-| ← | `05 02 01 N` | "I will send N images" (version unknown or different) |
-| ← | `05 06 idx id …` / `05 07 6×data` | image header / image data (~75 s for 52 images) |
+| ← | `05 02 01 N` | "I will send N images" (version unknown or different) → we send `05 03` len 2 too |
+| ← | `05 06 idx id …` / `05 07 6×data` | image header / image data (~75 s for 52 images); idx / N = how far the sync is (step "syncing", status `sync`) |
 | ← | `05 04 00 v0..v4` / `05 04 01 v5..v8` | the robot tells its image version → keep it |
 | ← | `05 02 00` | no (more) images → we send `05 03` len 2 ("ready"), the screen follows |
 | ← | `03 14 00 00` | asks contrast → `03 14 01 ff` len 4 |

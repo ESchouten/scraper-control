@@ -11,7 +11,7 @@ struct Texts {
   // holdWord: the small caption on every hold key (a key that fills up while its button is held)
   const char *holdWord, *holdPlanning, *holdManual, *holdPin, *route;
   // progress steps
-  const char *connecting, *checkingPin, *waitingPanel, *readingStatus, *switchingPlanning,
+  const char *connecting, *checkingPin, *syncing, *readingStatus, *switchingPlanning,
       *planningOffForNow, *openingRouteMenu, *finishing, *safetyYes, *choosingRoute, *pressingStart,
       *answeringQuestion, *stepOf, *of, *pleaseWait;
   // status rows

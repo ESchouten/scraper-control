@@ -172,6 +172,7 @@ class Tr(val code: String) {
   val stepRestored: String get() = t("Alles teruggezet", "Everything put back")
   val nextCheckPin: String get() = t("Pincode controleren", "Checking PIN")
   val nextWaitPanel: String get() = t("Synchroniseren met de robot (eerste keer ca. 1,5 min)", "Syncing with the robot (first time about 1.5 min)")
+  fun syncing(percent: Int): String = t("Synchroniseren met de robot ($percent%)", "Syncing with the robot ($percent%)")
   val nextReadStatus: String get() = t("Status lezen", "Reading status")
   val nextPlanningOff: String get() = t("Tijdsplanning uitzetten", "Pausing schedule")
   val nextOpenMenu: String get() = t("Routemenu openen", "Opening route menu")

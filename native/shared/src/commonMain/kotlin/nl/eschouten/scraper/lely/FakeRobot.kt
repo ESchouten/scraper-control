@@ -85,6 +85,7 @@ class FakeRobotLink(
   private var right = false
   private var forward = true
   private var gotV1: ByteArray? = null
+  private var imagesAnnounced = false // the ready after the image count asks for the images, not the screen
   private val buf = mutableListOf<Byte>()
   private val out = Channel<ByteArray>(Channel.UNLIMITED)
   private val closed = CompletableDeferred<Unit>()
@@ -229,9 +230,12 @@ class FakeRobotLink(
         send(listOf(cr(5, 2, 0, 0)))
       } else {
         log.imagesSent = 52
-        send(listOf(cr(5, 4, 0, *version.copyOfRange(0, 5).map { it.toInt() }.toIntArray()), cr(5, 4, 1, *version.copyOfRange(5, 9).map { it.toInt() }.toIntArray()), cr(5, 2, 0, 0)))
+        imagesAnnounced = true
+        val v = version.map { it.toInt() and 0xff }
+        send(listOf(cr(5, 2, 1, 52)) + (0 until 52).map { cr(5, 6, it, it) } +
+          listOf(cr(5, 4, 0, *v.subList(0, 5).toIntArray()), cr(5, 4, 1, *v.subList(5, 9).toIntArray()), cr(5, 2, 0, 0)))
       }
-    } else if (b[0] == 5 && b[1] == 3) draw()
+    } else if (b[0] == 5 && b[1] == 3) { if (imagesAnnounced) imagesAnnounced = false else draw() }
     val ev = b[0] or (b[1] shl 8)
     val key = b[2] or (b[3] shl 8)
     if (ln == 4 && mode == "manual" && KEYS[key] == "start_stop") return

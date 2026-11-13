@@ -390,7 +390,7 @@ class RobotController(
     val r = p.type.openSession(
       p,
       onStep = { s ->
-        steps = steps + s
+        steps = steps.filter { it.percent == null } + s
         emit()
       },
       onChanged = { changed ->
