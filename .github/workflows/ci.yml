@@ -95,10 +95,6 @@ jobs:
           distribution: temurin
           java-version: "17"
       - uses: gradle/actions/setup-gradle@v4
-      - uses: actions/cache@v4 # the NDK the Android plugin wants (not on the runner: a 700 MB download)
-        with:
-          path: /usr/local/lib/android/sdk/ndk
-          key: ndk-${{ hashFiles('native/build.gradle.kts') }}
       - name: Shared tests (core via JNI) against the simulated robot
         working-directory: native
         run: ./gradlew :shared:jvmTest --console=plain
