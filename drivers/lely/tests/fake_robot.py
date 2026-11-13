@@ -110,7 +110,7 @@ TEXTS = {
 
 
 class FakeRobot:
-    def __init__(self, address=None, on_data=None, *, planning=True, mode="home", version=b"DIS0018T4", slow=False, lang="nl", stop_asks=True):
+    def __init__(self, address=None, on_data=None, *, planning=True, mode="home", version=b"DIS0018T4", slow=False, after=0.0, lang="nl", stop_asks=True):
         self.on, self.planning, self.mode, self.sel = on_data, planning, mode, 0
         self.version, self.pressed, self.answer, self.images_sent = version, [], None, 0
         self._images_announced = False
@@ -125,8 +125,9 @@ class FakeRobot:
         self.main_sel = 3          # main menu (Instellingen highlighted, as seen): Werken, Routes, Testen, Instellingen, Alarmen, Service
         self._buf = bytearray()
         # slow=True behaves like the real robot over BLE (seen 2026-11-05): a redraw arrives in
-        # pieces over ~0.5 s, and keys pressed before it is done are ignored.
-        self.slow, self._busy_until, self._lock = slow, 0.0, threading.Lock()
+        # pieces over ~0.5 s, and keys pressed before its last piece is sent are ignored.
+        # after: it also ignores keys for that many seconds after the last piece.
+        self.slow, self.after, self._busy_until, self._lock = slow, after, 0.0, threading.Lock()
         self._live = False
 
     def _live_values(self):
@@ -158,11 +159,12 @@ class FakeRobot:
         f = [can([3, 1])]
         t = self.t
         if self.mode == "home":
-            f += text(3, 4, "20:21:19", 1) + text(3, 105, " ON" if self.planning else "OFF", 1)
-            f += text(14, 4, t["home"])
-            f += text(14, 58, "21:00:00") + text(22, 94, "01") + text(30, 48, "------------")
-            f += text(38, 76, "    -") + text(46, 76, "   10") + text(54, 76, "13500")
-            f += [can([3, 37, 1, 1, 11, 126, 2])]   # header bar
+            # in the real robot's order (captures/): labels, header bar, ON/OFF, values, and
+            # last the clock and the battery voltage
+            f += text(14, 4, t["home"]) + [can([3, 37, 1, 1, 11, 126, 2])]
+            f += text(3, 105, " ON" if self.planning else "OFF", 1)
+            f += text(46, 76, "   10") + text(14, 58, "21:00:00") + text(22, 94, "01") + text(38, 76, "    -")
+            f += text(30, 48, "------------") + text(3, 4, "20:21:19", 1) + text(54, 76, "13500")
         elif self.mode == "mainmenu":
             for i, m in enumerate(t["main"]):
                 f += text(4 + 8 * i, 0, f" {m:<15}")
@@ -196,15 +198,17 @@ class FakeRobot:
         if not self.slow:
             self._send(*f)
             return
-        self._busy_until = time.monotonic() + 0.6
+        self._busy_until = time.monotonic() + 60
         if not self._live:
             self._live = True
             threading.Thread(target=self._live_values, daemon=True).start()
 
-        def pieces():                 # four pieces, 0.12 s apart
+        def pieces():                 # four pieces, 0.12 s apart; done drawing with the last one
             n = (len(f) + 3) // 4
             for i in range(0, len(f), n):
                 time.sleep(0.12)
+                if i + n >= len(f):
+                    self._busy_until = time.monotonic() + self.after
                 self._send(*f[i:i + n])
         threading.Thread(target=pieces, daemon=True).start()
 
@@ -273,9 +277,11 @@ class FakeRobot:
                 return
             elif k == "enter" and self.main_sel == 0: self.mode = "home"
         elif self.mode == "menu":
-            if k in ("up", "down"):   # like Instellingen: rows redrawn, then one invert on the new row
+            if k in ("up", "down"):   # like Instellingen (captures/): rows redrawn, the invert after its row
                 self.sel = min(3, self.sel + 1) if k == "down" else max(0, self.sel - 1)
-                self._send(*self._menu_rows(), can([3, 37, 16 + 8 * self.sel, 19, 8, 90, 1]))
+                rows = self._menu_rows()
+                at = 4 * (self.sel + 1)   # a row is 4 records
+                self._send(*rows[:at], can([3, 37, 16 + 8 * self.sel, 19, 8, 90, 1]), *rows[at:])
                 return
             elif k == "back": self.mode = "home"
             elif k == "start_stop": self.mode = "question"

@@ -339,6 +339,7 @@ class RobotController(
   private suspend fun job(work: suspend () -> Outcome, record: ((Outcome) -> HistoryEvent)? = null): Outcome = mutex.withLock {
     steps = emptyList()
     last = null
+    val began = now()
     val out: Outcome = try {
       if (!isConnected) open()
       set(LinkState.Working)
@@ -364,7 +365,7 @@ class RobotController(
     }
     last = out
     if (record != null) {
-      val e = record(out)
+      val e = record(out).copy(ms = now() - began)
       history = (listOf(e) + history).take(History.MAX)
       runCatching { History.add(store, e) }
     }

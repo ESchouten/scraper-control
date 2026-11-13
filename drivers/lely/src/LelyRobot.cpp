@@ -53,7 +53,9 @@ Result Robot::fail(Result r, const std::string& why) {
 void Robot::onBytes(const uint8_t* d, size_t n) {
   lastRx_ = t_.now();
   for (auto& m : parser_.feed(d, n)) {
-    if (m.msgId == 2020) {
+    if (m.msgId == 2001) {
+      named_ = true;
+    } else if (m.msgId == 2020) {
       granted_ = (!m.payload.empty() && m.payload[0] == 1) ? 1 : 0;
     } else if (m.msgId == 1536 && m.payload.size() % 16 == 0) {
       for (size_t o = 0; o < m.payload.size(); o += 16) {
@@ -108,7 +110,7 @@ bool Robot::waitUntil(const Pred& p, uint32_t ms) {
 
 // The real robot redraws its screen in pieces over BLE and ignores keys until it is
 // done (seen 2026-11-05 with the M5Stack). So after every key we wait for the expected
-// screen and then until the screen is quiet, like the Python script that worked.
+// screen and then until the robot is done drawing it (settle).
 // Sometimes the robot does not react to a key at all (no frames back, seen 2026-11-05);
 // then the same key is sent once more. Only when nothing at all changed on the screen.
 void Robot::owe(int v) {
@@ -132,34 +134,38 @@ bool Robot::tap(Key k, const Pred& until, uint32_t ms) {
     t_.pump(80);
     t_.write(key(7, k));
     bool ok = waitUntil(until, ms);
-    settle();
+    settle(until);
     if (ok || until(screen)) return true;
     if (screen.version() != v) return false;   // the robot did react, just not as expected
+    patient_ = true;
     say(tr("geen reactie op toets, nog een keer", "no reaction to key, once more"));
   }
   return false;
 }
 
-void Robot::settle(uint32_t quiet, uint32_t ms) {
+void Robot::settle(const Pred& expected) {
   uint32_t start = t_.now(), since = start, v = screen.version();
-  while ((int32_t)(t_.now() - (start + ms)) < 0 && t_.linkUp()) {
+  while ((int32_t)(t_.now() - (start + 4000)) < 0 && t_.linkUp()) {
+    if (!patient_ && expected && expected(screen) && screen.drawn()) return;
     keepAlive();
     t_.pump(20);
     if (screen.version() != v) { v = screen.version(); since = t_.now(); }
-    else if (t_.now() - since >= quiet) return;
+    else if (t_.now() - since >= 400) return;
   }
 }
 
 // ---- lifecycle -------------------------------------------------------------------
 Result Robot::connect() {
   granted_ = -1;
+  named_ = patient_ = false;
   if (!t_.connect()) return fail(Result::ConnectFailed, tr("BLE-verbinding mislukt", "BLE connection failed"));
   step(Step::Linked);
   t_.write(computerType());
   t_.write(getNodeSetting());
-  t_.pump(300);
+  uint32_t end = t_.now() + 300;   // the robot answers with its name; without an answer, go on
+  while (!named_ && t_.linkUp() && (int32_t)(t_.now() - end) < 0) t_.pump(20);
   t_.write(askPermission(pin_));
-  uint32_t end = t_.now() + 10000;
+  end = t_.now() + 10000;
   while (granted_ < 0 && t_.linkUp() && (int32_t)(t_.now() - end) < 0) t_.pump(20);
   if (granted_ != 1) {   // only a real "no" (2020 = 00) means a wrong PIN
     t_.disconnect();
@@ -178,10 +184,11 @@ Result Robot::connect() {
   bool ok = waitUntil(shown, 90000);
   while (!ok && t_.linkUp() && t_.now() - lastRx_ < 5000 && t_.now() - start < 240000) ok = waitUntil(shown, 5000);
   if (!ok) return fail(Result::NoScreen, tr("geen scherm ontvangen", "no screen received"));
-  settle();
+  auto home = [](const Screen& s) { return s.isHome(); };
+  settle(home);
   if (!screen.isHome() && !screen.isRouteMenu()) {
-    waitUntil([](const Screen& s) { return s.isHome(); }, 1000);
-    settle();
+    waitUntil(home, 1000);
+    settle(home);
   }
   planningAtConnect_ = screen.planning();
   if (planningAtConnect_ < 0 && screen.isRouteMenu()) planningAtConnect_ = 0;   // menu: only with planning OFF
@@ -339,7 +346,6 @@ Result Robot::readRoutes(std::vector<std::string>& out) {
   tap(Key::Enter, [](const Screen& s) { return s.isRouteMenu(); });
   if (!screen.isRouteMenu()) { restore(wasOn); return fail(Result::Unexpected, tr("routemenu niet gezien", "route menu not seen")); }
   step(Step::Menu);
-  settle();
   out = screen.routeContents();
   say(tr("routes gelezen", "routes read"));
   Result rr = restore(wasOn);

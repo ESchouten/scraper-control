@@ -24,6 +24,12 @@ object Fmt {
     return "${tenths / 10}${tr.decimal}${tenths % 10} V"
   }
 
+  /** 3240 -> "3,2 s" (NL) / "3.2 s" (EN). */
+  fun seconds(ms: Long): String {
+    val tenths = (ms + 50) / 100
+    return "${tenths / 10}${tr.decimal}${tenths % 10} s"
+  }
+
   fun hhmm(at: Long): String {
     val t = local(at)
     return "${t.hour.toString().padStart(2, '0')}:${t.minute.toString().padStart(2, '0')}"

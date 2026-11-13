@@ -56,6 +56,8 @@ private fun logRow(s: ControllerState, e: HistoryEvent): LogRow {
   val sub = listOfNotNull(
     label, robotName,
     e.detail.takeIf { e.kind == EventKind.Failed && it.isNotEmpty() },
+    // not for a stop: that waits for the user's answer
+    Fmt.seconds(e.ms).takeIf { e.ms > 0 && e.kind != EventKind.Failed && e.kind != EventKind.Stopped },
     tr.viaWidget.takeIf { e.viaWidget },
   ).joinToString(" · ")
   return LogRow(e.route, e.kind != EventKind.Route, e.title, glyph, tone, sub, Fmt.hhmm(e.at))

@@ -139,8 +139,10 @@ class Robot {
   using Pred = std::function<bool(const Screen&)>;
   bool waitUntil(const Pred& p, uint32_t ms);
   bool tap(Key k, const Pred& until, uint32_t ms = 4000);
-  // Wait until the screen did not change for `quiet` ms (redraw done), at most `ms`.
-  void settle(uint32_t quiet = 400, uint32_t ms = 4000);
+  // Wait until the robot is done drawing: at once when `expected` is on the screen with its
+  // last piece (Screen::drawn), otherwise when the screen did not change for 400 ms. Once
+  // the robot ignored a key, always the 400 ms, until the next connect.
+  void settle(const Pred& expected = nullptr);
   Result goHome();
   Result switchPlanning(bool on);   // setPlanning without changing what finish() restores
   bool onMainMenu() const;
@@ -171,6 +173,8 @@ class Robot {
   int owed_ = -1;                   // see owedPlanning()
   uint32_t lastRepeat_ = 0;
   uint32_t lastAlive_ = 0;
+  bool named_ = false;              // the robot answered with its node settings (2001)
+  bool patient_ = false;            // the robot ignored a key: see settle()
   int images_ = 0, imageNr_ = -1;   // image set: count, number of the image now coming
   uint32_t lastRx_ = 0;             // when the robot last sent anything
 };

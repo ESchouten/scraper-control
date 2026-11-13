@@ -39,7 +39,7 @@ internal expect fun peripheralById(id: String): Peripheral?
 /** A scanner for the short searches below. Per platform: Android's default listens only a tenth of the time. */
 internal expect fun robotScanner(): PlatformScanner
 
-/** After connecting: e.g. a bigger MTU on Android. */
+/** After connecting: on Android a bigger MTU and a short connection interval. */
 internal expect suspend fun afterConnect(p: Peripheral)
 
 private fun LinkSpec.BleSerial.matches(a: Advertisement, name: String?): Boolean {

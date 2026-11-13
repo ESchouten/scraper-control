@@ -13,7 +13,8 @@ enum class EventKind {
   @SerialName("stopped") Stopped,
 }
 
-/** [at] in epoch milliseconds. [route]: "A".."D" for route starts and dry runs. [robot]: RobotProfile.uid. */
+/** [at] in epoch milliseconds. [route]: "A".."D" for route starts and dry runs. [robot]: RobotProfile.uid.
+ *  [ms]: how long it took, connecting included. */
 @Serializable
 data class HistoryEvent(
   val at: Long,
@@ -23,6 +24,7 @@ data class HistoryEvent(
   @SerialName("widget") val viaWidget: Boolean = false,
   val route: String? = null,
   val robot: String? = null,
+  val ms: Long = 0,
 )
 
 object History {

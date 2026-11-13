@@ -410,11 +410,19 @@ static void waitForButton() {
 static void withRobot(const String& title, Kind kind, const Job& job) {
   Status st;
   std::string err;
+  uint32_t t0 = millis();
   Result r = runOnce(title, kind, job, st, err);
   if (r == Result::PinRejected) {
     M5.Speaker.tone(400, 150);
     if (!editPin(tx->pinRejected)) { idle(); return; }
+    t0 = millis();
     r = runOnce(title, kind, job, st, err);
+  }
+  // How long a route start or a planning switch took, behind the heading: " (3,2 s)".
+  String took;
+  if (kind == Kind::Planning || (kind == Kind::Route && routeStopped == Stopped::No)) {
+    int tenths = int((millis() - t0 + 50) / 100);
+    took = String(" (") + (tenths / 10) + (tx->code[0] == 'n' ? "," : ".") + (tenths % 10) + " s)";
   }
 
   if (r == Result::Ok) {
@@ -425,7 +433,7 @@ static void withRobot(const String& title, Kind kind, const Job& job) {
                      : kind == Kind::Planning ? String(tx->planningIs) + " " + (st.planning == 1 ? tx->planningOnWord : tx->planningOffWord)
                      : kind == Kind::Manual   ? String(tx->manualDone)
                                               : String(tx->robotStatus);
-    drawResult(title, true, heading, st, routeStopped == Stopped::LeftOpen ? String(tx->questionLeftOpen) : String());
+    drawResult(title, true, heading + took, st, routeStopped == Stopped::LeftOpen ? String(tx->questionLeftOpen) : String());
   } else {
     String why = resultText(r, langFromCode(tx->code));
     why = String(char(toupper(why.c_str()[0]))) + why.substring(1);

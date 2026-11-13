@@ -80,7 +80,7 @@ std::vector<Message> Parser::feed(const uint8_t* data, size_t len) {
 }
 
 // ---- Screen -------------------------------------------------------------------
-void Screen::clear() { items_.clear(); areas_.clear(); images_.clear(); version_++; }
+void Screen::clear() { items_.clear(); areas_.clear(); images_.clear(); version_++; whole_ = false; }
 
 void Screen::feed(const uint8_t d[8]) {
   if (d[0] != 3) return;
@@ -88,24 +88,29 @@ void Screen::feed(const uint8_t d[8]) {
   // version() counts redraws only. The home screen rewrites its clock every second and the
   // battery voltage about every 250 ms (captures/, 2026-11-05): a text written again in the
   // same place with the same length is such a live value and does not count.
+  // whole_ ends when something on the screen is taken away or replaced (a moved selection
+  // bar, another image): from then on the screen is no longer just its first drawing.
   auto put = [this](int y, int x, const std::string& t) {
     auto it = items_.find({y, x});
-    if (it == items_.end() || it->second.size() != t.size()) version_++;
+    if (it == items_.end()) version_++;
+    else if (it->second.size() != t.size()) { version_++; whole_ = false; }
     items_[{y, x}] = t;
   };
   if (op == 1) {
     items_.clear(); areas_.clear(); images_.clear();
     version_++;
+    whole_ = true;
   } else if (op == 36) {                       // image from the robot's image set: y, x, number
     auto it = images_.find({d[2], d[3]});
-    if (it == images_.end() || it->second != d[4]) version_++;
+    if (it == images_.end()) version_++;
+    else if (it->second != d[4]) { version_++; whole_ = false; }
     images_[{d[2], d[3]}] = d[4];
   } else if (op == 30) {                       // text start: y, x, font
     inText_ = true; curY_ = d[2]; curX_ = d[3]; buf_.clear();
     // A redrawn row loses its selection bar (seen 2026-11-05 in Instellingen/Taal: the robot
     // redraws the rows, then inverts only the new one). The header bar (y <= 1) stays.
     for (auto it = areas_.begin(); it != areas_.end();)
-      it = it->op == 37 && it->y > 1 && curY_ >= it->y - 2 && curY_ < it->y + it->h - 1 ? (version_++, areas_.erase(it)) : std::next(it);
+      it = it->op == 37 && it->y > 1 && curY_ >= it->y - 2 && curY_ < it->y + it->h - 1 ? (version_++, whole_ = false, areas_.erase(it)) : std::next(it);
   } else if (op == 31 && inText_) {            // text chunk, 0-terminated
     for (int i = 2; i < 8; i++) {
       if (d[i] == 0) {
@@ -130,15 +135,16 @@ void Screen::feed(const uint8_t d[8]) {
     auto inside = [&a](int y, int x) { return x >= a.x && x < a.x + a.w && y >= a.y - 2 && y <= a.y + a.h; };
     if (op == 13) {                            // wipe area: text and selection bars inside it go
       for (auto it = items_.begin(); it != items_.end();)
-        it = inside(it->first.first, it->first.second) ? items_.erase(it) : std::next(it);
+        it = inside(it->first.first, it->first.second) ? (whole_ = false, items_.erase(it)) : std::next(it);
       for (auto it = areas_.begin(); it != areas_.end();)
-        it = (it->op == 15 || it->op == 37) && inside(it->y, it->x) ? areas_.erase(it) : std::next(it);
+        it = (it->op == 15 || it->op == 37) && inside(it->y, it->x) ? (whole_ = false, areas_.erase(it)) : std::next(it);
       return;
     }
     auto same = [&a](const Area& b) { return b.op == a.op && b.y == a.y && b.x == a.x && b.h == a.h && b.w == a.w; };
     auto it = std::find_if(areas_.begin(), areas_.end(), same);
     if (op == 37 && it != areas_.end()) {      // invert (XOR): the same area again undoes it
       areas_.erase(it);
+      whole_ = false;
       return;
     }
     if (it != areas_.end()) areas_.erase(it);  // other ops: same place again keeps one
@@ -326,6 +332,13 @@ bool Screen::isQuestion() const {
 bool Screen::isStopQuestion() const {
   if (isHome() || isRouteMenu() || isManual()) return false;
   return rowItems(52, 56, 0, 40) == 1 && rowItems(52, 56, 41, 84) == 1 && rowItems(52, 56, 85, 127) == 1;
+}
+
+bool Screen::drawn() const {
+  if (!whole_) return false;
+  if (isHome()) return !valueAt(54).empty();                         // the battery voltage
+  if (isRouteMenu() || isMainMenu()) return highlightedRow() >= 0;   // the selection bar
+  return isQuestion();                                               // the right-hand answer
 }
 
 std::string Screen::language() const {

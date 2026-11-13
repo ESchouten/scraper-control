@@ -136,10 +136,15 @@ case("hold left: planning on -> off", {"planning": True}, ("toggle",), lambda r,
 case("hold left: planning off -> on", {"planning": False}, ("toggle",), lambda r, e: r.mode == "home" and r.planning and "RESULT ok" in e)
 case("hold left while driving: nothing pressed", {"mode": "driving"}, ("toggle",), lambda r, e: r.pressed == [] and "RESULT robot is bezig" in e)
 # Like the real robot (2026-11-05): redraws arrive in pieces, keys during a redraw are ignored,
-# and the home screen keeps rewriting its clock and battery voltage. 6 redraws of ~0.5 s plus
-# 0.4 s quiet each; the clock and battery must not hold it up (was 12 s).
-case("slow robot: route B, planning on -> Ja, started in < 8 s", {"planning": True, "slow": True}, ("route", "B"),
-     lambda r, e: r.mode == "driving" and r.sel == 1 and r.answer == "ja" and not r.ignored and r.took < 8)
+# and the home screen keeps rewriting its clock and battery voltage. 6 redraws of ~0.5 s, the
+# next key right after each one's last piece (was 12 s with 4 s waits on the home screen,
+# 5.3 s with 0.4 s after every redraw).
+case("slow robot: route B, planning on -> Ja, started in < 5 s", {"planning": True, "slow": True}, ("route", "B"),
+     lambda r, e: r.mode == "driving" and r.sel == 1 and r.answer == "ja" and not r.ignored and r.took < 5)
+# A robot that still ignores keys for a moment after its last piece: one key is sent again,
+# and from then on the core waits for a quiet screen as before.
+case("slow robot that needs a moment after drawing: one key repeated, route B started", {"planning": True, "slow": True, "after": 0.12},
+     ("route", "B"), lambda r, e: r.mode == "driving" and r.sel == 1 and r.answer == "ja" and len(r.ignored) == 1)
 case("slow robot: route C, planning off -> Nee", {"planning": False, "slow": True}, ("route", "C"),
      lambda r, e: r.mode == "driving" and r.sel == 2 and r.answer == "nee" and not r.ignored)
 case("slow robot: hold left, planning on -> off", {"planning": True, "slow": True}, ("toggle",),

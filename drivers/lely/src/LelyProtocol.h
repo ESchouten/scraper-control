@@ -97,7 +97,12 @@ class Screen {
   bool isStopQuestion() const;
   bool isManual() const;      // HANDBEDIENING: L/R boxes and the direction image at the bottom
   bool isDriving() const;     // ROUTE->TIJDPAD: title with "->" on top, no clock, label rows at x = 4
-  uint32_t version() const { return version_; }
+  uint32_t version() const { return version_; }   // counts redraws (not the clock and battery)
+  // The robot draws each screen in a fixed order (captures/): true once the last piece of the
+  // home screen, the route menu, the main menu or a question is there, so the robot is done
+  // drawing it. False for other screens and once a screen changed in place (a moved selection
+  // bar): where those end is not known.
+  bool drawn() const;
 
  private:
   struct Area { uint8_t op, y, x, h, w, c; };
@@ -109,6 +114,7 @@ class Screen {
   int curX_ = 0, curY_ = 0;
   std::string buf_;
   uint32_t version_ = 0;
+  bool whole_ = false;   // only the first drawing after a clear (op 1), nothing replaced since
 };
 
 // Parsed home screen, same fields as the Python Status.

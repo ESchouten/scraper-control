@@ -2,6 +2,7 @@
 #include "BtLink.h"
 
 #include <BluetoothSerial.h>
+#include <esp_gap_ble_api.h>
 
 #include <algorithm>
 #include <cctype>
@@ -109,6 +110,11 @@ bool BtLink::connect() {
 bool BtLink::connectBle() {
   startBle();
   if (!client) client = BLEDevice::createClient();
+  // A short connection interval (7.5 to 15 ms; Bluedroid takes 30 to 50 ms by itself), so
+  // every key and every answer of the robot crosses sooner. Supervision timeout 4 s.
+  esp_bd_addr_t a;
+  if (sscanf(address_.c_str(), "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", &a[0], &a[1], &a[2], &a[3], &a[4], &a[5]) == 6)
+    esp_ble_gap_set_prefer_conn_params(a, 6, 12, 0, 400);
   if (!client->connect(BLEAddress(address_.c_str()), BLE_ADDR_TYPE_PUBLIC, 5000)) return false;
   BLERemoteService* svc = client->getService(BLEUUID(kService));
   if (!svc) { client->disconnect(); return false; }

@@ -36,5 +36,7 @@ internal actual fun robotScanner(): PlatformScanner = Scanner {
 }
 
 internal actual suspend fun afterConnect(p: Peripheral) {
-  (p as? AndroidPeripheral)?.requestMtu(247) // robot reports 236; bigger frames = fewer packets
+  val a = p as? AndroidPeripheral ?: return
+  a.requestMtu(247) // robot reports 236; bigger frames = fewer packets
+  a.requestConnectionPriority(AndroidPeripheral.Priority.High) // short connection interval: every answer comes sooner
 }
