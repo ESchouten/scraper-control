@@ -1,23 +1,86 @@
-name: native
-# The native apps (native/): shared Kotlin module with the robot driver (C++), Compose UI for
-# Android and desktop, SwiftUI for iOS. On a push: Linux (all tests, desktop, Android) and the
-# Windows build; run it by hand for the Windows scenario tests and iOS too.
+name: ci
+# Every check on a push, each part only when its files changed (a push of only docs runs
+# nothing): the robot drivers' tests and the buttons' firmware (M5Stack), the apps (native/:
+# shared Kotlin module with the robot driver, Compose for Android and desktop, SwiftUI for iOS).
+# Run it by hand for everything, with the Windows scenario tests and iOS (macOS minutes count
+# 10x; also once a day when something changed). Releases: workflow release, by hand.
 on:
   push:
-    paths: ["native/**", "core/**", "drivers/**", ".github/workflows/native.yml"]
   pull_request:
-    paths: ["native/**", "core/**", "drivers/**"]
   workflow_dispatch:
   schedule:
-    - cron: "17 3 * * *" # iOS once a day, only if native/, core/ or drivers/ changed (macOS minutes count 10x)
+    - cron: "17 3 * * *" # iOS once a day, only if native/, core/ or drivers/ changed
 
 concurrency:
-  group: native-${{ github.ref }}
+  group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  jvm-and-android:
-    if: github.event_name != 'schedule'
+  changes:
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    outputs:
+      firmware: ${{ steps.f.outputs.firmware }}
+      apps: ${{ steps.f.outputs.apps }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: f
+        with:
+          filters: |
+            firmware: [firmware/**, drivers/**, core/**, python/**, tests/**, native/gradle.properties, .github/workflows/ci.yml]
+            apps: [native/**, core/**, drivers/**, .github/workflows/ci.yml]
+
+  drivers:
+    if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || needs.changes.outputs.firmware == 'true') }}
+    needs: changes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install cryptography
+      - name: Every robot driver's own tests (against its simulated robot), side by side
+        run: ls drivers/*/tests/test_*.py | xargs -P 4 -n 1 python
+
+  firmware:
+    if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || needs.changes.outputs.firmware == 'true') }}
+    needs: changes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the build number is the commit count
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-${{ hashFiles('firmware/platformio.ini') }}
+      - uses: actions/cache@v4 # what is compiled: only changed files compile again
+        with:
+          path: firmware/.pio/build
+          key: pio-build-${{ hashFiles('firmware/platformio.ini') }}-${{ github.sha }}
+          restore-keys: pio-build-${{ hashFiles('firmware/platformio.ini') }}-
+      - run: pip install platformio cryptography
+      - name: Firmware on a computer (editors, update manifest, syntax check)
+        run: python tests/test_firmware.py
+      - name: Build the M5Stack firmware
+        working-directory: firmware
+        run: pio run
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firmware
+          path: |
+            firmware/.pio/build/m5stack-core/firmware.bin
+            firmware/.pio/build/m5stack-core/bootloader.bin
+            firmware/.pio/build/m5stack-core/partitions.bin
+
+  apps-linux:
+    if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || needs.changes.outputs.apps == 'true') }}
+    needs: changes
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -59,8 +122,9 @@ jobs:
             native/composeApp/build/reports/tests/
             native/shared/build/reports/tests/
 
-  windows:
-    if: github.event_name != 'schedule'
+  apps-windows:
+    if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || needs.changes.outputs.apps == 'true') }}
+    needs: changes
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -90,7 +154,7 @@ jobs:
           path: native/composeApp/build/compose/binaries/main/exe/*.exe
           if-no-files-found: error
 
-  ios:
+  apps-ios:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: macos-latest
     steps:

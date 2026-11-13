@@ -81,6 +81,6 @@ Group `group.nl.eschouten.scraper`.
 
 ## CI
 
-`.github/workflows/native.yml`: on every push the scenario check, the shared tests, the
+`.github/workflows/ci.yml`: on every push that changes the apps the scenario check, the shared tests, the
 desktop app, the Compose scenarios with screenshots, and the Android APK. iOS (macOS
 runner, minutes count 10x) once a day when `native/`, `core/` or `drivers/` changed, and by hand.
