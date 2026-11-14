@@ -169,7 +169,7 @@ class ScenarioTest {
     waitUntilAtLeastOneExists(hasText(tr.lastStarted(""), substring = true), WAIT)
   }
 
-  @Test fun route_busy() = scenario("setup=done mode=manual") {
+  @Test fun route_busy() = scenario("setup=done mode=question") {
     tap("route-A")
     slide()
     waitText("run-result-title", tr.robotBusy)

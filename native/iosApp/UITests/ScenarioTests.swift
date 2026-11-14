@@ -155,7 +155,7 @@ final class ScenarioTests: XCTestCase {
   }
 
   func test_route_busy() {
-    launch("setup=done mode=manual")
+    launch("setup=done mode=question")
     tap("route-A")
     slide()
     waitLabel("run-result-title", contains: tr.robotBusy)

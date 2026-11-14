@@ -6,7 +6,7 @@
     {"id": "home_status", "demo": "setup=done", "steps": "home shows 'not connected yet' > tap the state pill > planning On, next run 21:00, battery 13.5 V"},
     {"id": "route_dry_run", "demo": "setup=done", "steps": "tap route A > dry run > result 'dry run OK' with 'start for real' and 'close' > start for real goes back to the slider"},
     {"id": "route_start", "demo": "setup=done", "steps": "tap route B > slide to start > 'route started' > done closes the sheet > card says last started today"},
-    {"id": "route_busy", "demo": "setup=done mode=manual", "steps": "tap route A > slide > 'robot busy' warning with only 'close'"},
+    {"id": "route_busy", "demo": "setup=done mode=question", "steps": "tap route A > slide > 'robot busy' warning with only 'close'"},
     {"id": "planning_toggle", "demo": "setup=done", "steps": "refresh > tap planning > confirm > planning Off"},
     {"id": "panel_keys", "demo": "setup=done planning=off", "steps": "open the robot's panel > connect > display shows the robot's home screen > press Enter > the display text changes (the menu opens; with planning on the robot ignores Enter) > back disconnects"},
     {"id": "settings_language", "demo": "setup=done ui=nl", "steps": "settings > language > English > the screen title is 'Settings'"},

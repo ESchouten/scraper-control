@@ -885,10 +885,21 @@ static const char kReleaseUrl[] = "https://github.com/" FW_REPO "/releases/lates
 static const char kManifest[] = "update.ini";   // fixed name; the firmware files can change names
 
 // One line of the response, without "\r\n" ("" at the end of the headers or on a timeout).
+// The automatic update runs while the home screen shows: a button press stops it, and the
+// press is left for loop() (a route button acts as usual).
+static bool autoUpdating = false, autoPressed = false;
+static bool pressedDuringAuto() {
+  if (autoUpdating && !autoPressed) {
+    M5.update();
+    autoPressed = M5.BtnA.wasPressed() || M5.BtnB.wasPressed() || M5.BtnC.wasPressed();
+  }
+  return autoPressed;
+}
+
 static String readLine(WiFiClientSecure& c, uint32_t ms = 15000) {
   String s;
   uint32_t t0 = millis();
-  while (millis() - t0 < ms) {
+  while (millis() - t0 < ms && !pressedDuringAuto()) {
     if (c.available()) {
       char ch = (char)c.read();
       if (ch == '\n') return s;
@@ -911,7 +922,9 @@ static bool httpsGet(WiFiClientSecure& client, std::string url, long& length) {
     if (!parseUrl(url, host, path)) return false;
     client.stop();
     client.setInsecure();   // trust comes from the signature, not from the connection
-    if (!client.connect(host.c_str(), 443)) return false;
+    // A hotspot without internet yet would hold a connect for minutes (TLS waits 120 s).
+    client.setHandshakeTimeout(10);
+    if (pressedDuringAuto() || !client.connect(host.c_str(), 443, 10000)) return false;
     client.print(String("GET ") + path.c_str() + " HTTP/1.0\r\nHost: " + host.c_str() +
                  "\r\nUser-Agent: scraper-control\r\nConnection: close\r\n\r\n");
     int code = statusCode(readLine(client).c_str());
@@ -936,7 +949,7 @@ static bool fetchText(const String& url, String& out) {
   long length = -1;
   bool ok = httpsGet(client, url.c_str(), length);
   uint32_t t0 = millis();
-  while (ok && (length < 0 || (long)out.length() < length) && millis() - t0 < 15000) {
+  while (ok && (length < 0 || (long)out.length() < length) && millis() - t0 < 15000 && !pressedDuringAuto()) {
     if (client.available()) {
       out += (char)client.read();
       if (out.length() > 16384) break;   // a manifest is a few hundred bytes per board
@@ -1104,7 +1117,8 @@ static bool offerUpdate(bool quiet) {
 }
 
 // ---- automatic updates (Erik 2026-11-11) ----------------------------------------------
-// An idle M5 tries its saved wifi every 10 minutes, in the background (buttons keep working).
+// An idle M5 tries its saved wifi every 10 minutes, in the background (buttons keep working;
+// a press during the check stops it).
 // On every new connection (a phone's hotspot in a barn without wifi) and otherwise once a
 // day it checks the latest release; a newer signed version is installed at once and the M5
 // restarts. Never while in use (2 minutes after the last press), never while a planning is
@@ -1121,7 +1135,11 @@ static void autoStop() {
 
 static void installIfNewer() {
   String body;
-  if (!fetchText(String(kReleaseUrl) + kManifest, body)) return;
+  autoUpdating = true;
+  autoPressed = false;
+  bool got = fetchText(String(kReleaseUrl) + kManifest, body);
+  autoUpdating = false;
+  if (!got || autoPressed) return;
   Manifest m = parseManifest(body.c_str(), FW_BOARD);
   if (!isUpdate(m, FW_BOARD, FW_BUILD) || !signatureOk(m)) return;
   int dim = dimLevel;
