@@ -13,6 +13,7 @@ struct String { std::string s; String(){} String(const char*c):s(c?c:""){} Strin
   void trim(){auto a=s.find_first_not_of(' ');auto b=s.find_last_not_of(' ');s=a==std::string::npos?"":s.substr(a,b-a+1);} bool operator!=(const std::string&o) const{return s!=o;} };
 inline String operator+(const char*a,const String&b){return String(std::string(a)+b.s);}
 uint32_t millis(); void delay(uint32_t);
+#define RTC_NOINIT_ATTR
 struct SerialT{ void begin(int){} void println(const char*){} void printf(const char*,...){} }; extern SerialT Serial;
 enum { TFT_BLACK, TFT_WHITE, TFT_YELLOW, TFT_GREEN, TFT_RED };
 namespace m5 { struct Button_Class { bool wasPressed(); bool wasReleased(); bool isPressed(); };

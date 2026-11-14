@@ -102,7 +102,7 @@ class ScreenModelTest {
   }
 
   @Test fun runSheetWhenRobotBusy() = runBlocking {
-    val c = demo("mode=manual")
+    val c = demo("mode=question")
     val run = RunFlow(c, "A")
     val o = run.start(dryRun = false)
     assertEquals(Problem.Busy, o.problem)

@@ -244,6 +244,8 @@ Result Robot::goHome() {
   for (int i = 0; i < 8; i++) {
     if (screen.isHome()) return Result::Ok;
     if (onMainMenu()) { mainMenuToHome(); continue; }
+    // Left in manual control (HANDBEDIENING, standing still: nothing is held): Back out of it.
+    if (screen.isManual()) { driveEnd(); tap(Key::Back, [](const Screen& s) { return !s.isManual(); }); continue; }
     if (!screen.isRouteMenu()) return fail(Result::Busy, tr("niet op beginscherm of routemenu; niets gedrukt", "not on home screen or route menu; nothing pressed"));
     tap(Key::Back, [](const Screen& s) { return s.isHome(); });
   }

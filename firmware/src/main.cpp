@@ -53,10 +53,20 @@ enum class Stopped { No, Yes, LeftOpen, Continues, Cancelled };
 static Stopped routeStopped = Stopped::No;
 static const Texts* tx = &kNl;     // screen language: the robot's, seen at the last connect
 // Planning the robot is still owed by a session whose link dropped (see Robot::owedPlanning);
-// paid back at the next connect if not older than 6 hours.
+// paid back at the next connect if not older than 6 hours. A copy in RTC memory survives a
+// restart of the M5 (a crash), not a power cut; the check word tells it from noise.
 static int owedPlanning = -1;
 static uint32_t owedAt = 0;
 static const uint32_t kOwedForMs = 6UL * 3600UL * 1000UL;
+RTC_NOINIT_ATTR static int rtcOwed;
+RTC_NOINIT_ATTR static int rtcOwedCheck;
+
+static void setOwed(int v) {
+  owedPlanning = v;
+  owedAt = millis();
+  rtcOwed = v;
+  rtcOwedCheck = ~v;
+}
 // The robot as the M5 last saw it (RAM only): the home screen shows it, with its age.
 // Read at every command and every 15 minutes in the background (syncTick).
 static Status seen;
@@ -347,10 +357,7 @@ static Result runOnce(const String& title, Kind kind, const Job& job, Status& st
   BtLink link(savedAddress, savedClassic);
   Robot robot(link, encryptPin(pin.c_str()), storedVersion);
   if (owedPlanning >= 0 && millis() - owedAt < kOwedForMs) robot.setOwedPlanning(owedPlanning);
-  robot.onOwed = [](int v) {
-    owedPlanning = v;
-    owedAt = millis();
-  };
+  robot.onOwed = setOwed;
   robot.lang = langFromCode(tx->code);
   robot.log = [](const std::string& s) { Serial.println(s.c_str()); };
   robot.onStep = [&](Step s) {
@@ -1293,6 +1300,7 @@ void setup() {
   ui::begin();   // LVGL: the screens (Ui.h)
   Serial.begin(115200);
   prefs.begin(DRIVER_STORE, false);
+  if (rtcOwedCheck == ~rtcOwed && (rtcOwed == 0 || rtcOwed == 1)) owedPlanning = rtcOwed;   // from before a restart
   if (prefs.getBytesLength("imgver") == 9) prefs.getBytes("imgver", storedVersion, 9);
   savedAddress = prefs.getString("addr", "").c_str();
   savedClassic = prefs.getBool("classic", false);

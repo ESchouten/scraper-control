@@ -115,7 +115,7 @@ class ControllerTest {
   }
 
   @Test fun busyRobotPressesNothing() = runBlocking {
-    simulate("--mode", "manual") // manual control menu: never press anything there
+    simulate("--mode", "question") // a screen the app does not know how to leave: press nothing
     val c = controller()
     val o = c.startRoute("A")
     assertFalse(o.ok)

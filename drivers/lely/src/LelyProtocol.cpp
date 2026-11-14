@@ -361,6 +361,7 @@ Status parseStatus(const Screen& s) {
   st.driving = s.isDriving();
   st.stopQuestion = s.isStopQuestion();
   st.planning = s.planning();
+  if (st.planning < 0 && (s.isRouteMenu() || s.isManual())) st.planning = 0;   // only reachable with planning OFF
   st.busy = !(s.isHome() || s.isRouteMenu());
   for (auto& l : s.lines())
     if (l.size() >= 10 && l[2] == ':' && l[5] == ':' && st.clock.empty()) st.clock = l.substr(0, 8);

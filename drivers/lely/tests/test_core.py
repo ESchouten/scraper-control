@@ -163,6 +163,12 @@ case("manual with planning off: stays off afterwards", {"planning": False}, ("ma
 case("manual: disconnect while driving still sends up", {"planning": False}, ("manual-drop",),
      lambda r, e: r.drive_events[0] == 0 and r.drive_events[-1] == 7)
 case("manual while driving a route: nothing pressed", {"mode": "driving"}, ("manual",), lambda r, e: r.pressed == [] and "RESULT robot is bezig" in e)
+case("robot left in manual control: route started from there", {"planning": False, "mode": "manual"}, ("route", "A"),
+     lambda r, e: r.mode == "driving" and r.sel == 0 and r.answer == "nee" and "RESULT ok" in e)
+case("robot left in manual control: hold left switches planning on", {"planning": False, "mode": "manual"}, ("toggle",),
+     lambda r, e: r.mode == "home" and r.planning and "RESULT ok" in e)
+case("robot left in manual control: routes read", {"planning": False, "mode": "manual"}, ("routes",),
+     lambda r, e: r.mode == "home" and "ROUTES A=" in e and "RESULT ok" in e)
 case("route from the main menu: started", {"planning": False, "mode": "mainmenu", "slow": True}, ("route", "A"),
      lambda r, e: r.mode == "driving" and r.sel == 0 and "RESULT ok" in e)
 # Leaving: the robot as found (home screen, planning as at connect), except on purpose.

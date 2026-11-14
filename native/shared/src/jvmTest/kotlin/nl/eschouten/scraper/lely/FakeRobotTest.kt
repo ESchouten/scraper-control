@@ -79,9 +79,16 @@ class FakeRobotTest {
     assertEquals("abort", l.log.mode)
   }
 
-  @Test fun manualMenuPressesNothing() {
-    val l = run(FakeRobotOptions(mode = "manual")) { r -> assertFailsWith<RobotBusy> { r.startRoute('A') } }
-    assertTrue("enter" !in l.log.pressed)
+  @Test fun drivingPressesNothing() {
+    val l = run(FakeRobotOptions(mode = "driving")) { r -> assertFailsWith<RobotBusy> { r.startRoute('A') } }
+    assertTrue(l.log.pressed.isEmpty())
+  }
+
+  /** Erik 2026-11-14: the robot was still in manual control; a route button goes back home first. */
+  @Test fun leftInManualControlTheRouteStillStarts() {
+    val l = run(FakeRobotOptions(mode = "manual", planning = false)) { r -> r.startRoute('A') }
+    assertEquals("driving", l.log.mode)
+    assertEquals("nee", l.log.answer)
   }
 
   @Test fun holdDrivesUntilReleased() {
