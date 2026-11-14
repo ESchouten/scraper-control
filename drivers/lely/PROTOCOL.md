@@ -11,7 +11,7 @@ was checked on a real Discovery (November 2026), unless stated otherwise.
 | Python | C++ (core) | What |
 |---|---|---|
 | `Robot(pin, address=None, name=None)` | `Robot(transport, encryptPin(pin), imageVersion)` | the robot object |
-| `await connect()` | `connect()` | connect, PIN, image version, wait for the screen |
+| `await connect()` | `connect()` | connect, PIN, image version, wait for the screen; a notice shown at login (an unknown screen that asks nothing and is not a route running) gets Esc, at most 3 times |
 | `status()` | `status()` | schedule, clock, next ride, route, action, ride no., battery (mV), `busy`, `driving`, `stopQuestion` |
 | `await start_route("A", dry_run=False)` | `startRoute('A', dryRun)` | start a combined route A–D |
 | `await stop_route()` | `stopRoute()` | emergency stop of a running route (only on the driving screen) |
@@ -21,7 +21,7 @@ was checked on a real Discovery (November 2026), unless stated otherwise.
 | – (M5, apps) | `enterManual()` / `manualKey(Soft1..3)` / `driveBegin()` · `driveHold(ms)` · `driveEnd()` / `exitManual()` | manual driving, see below |
 | – | `readRoutes(out)` | what routes A–D consist of (only reads) |
 | (in `disconnect()`) | `finish()` | leave the robot as it was found: back to the home screen from a safe menu, schedule as at connect (unless `set_planning` changed it on purpose) |
-| (after every command) | `owedPlanning()` / `setOwedPlanning(v)` | if the link drops before `finish()` could run, the host keeps what the robot is still "owed" (schedule 1/0, -1 = nothing) and hands it to the next session; `connect()` then first puts the robot back. While the robot drives or shows another screen the value stays owed. Apps: per robot, at most 6 hours old; M5: in memory, 6 hours |
+| (after every command) | `owedPlanning()` / `setOwedPlanning(v)` | if the link drops before `finish()` could run, the host keeps what the robot is still "owed" (schedule 1/0, -1 = nothing) and hands it to the next session; `connect()` then first puts the robot back. While the robot drives or shows another screen the value stays owed. Apps: per robot, at most 6 hours old; M5: in RTC memory (survives a restart, not a power cut), 6 hours |
 | `await disconnect()` | `disconnect()` | |
 | `LelyBusy` / `LelyError` | `Result::Busy` / `Result::Unexpected` / … | errors |
 

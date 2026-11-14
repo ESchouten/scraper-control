@@ -189,6 +189,9 @@ class FakeRobot:
             f += [can([3, 33, 51, 0, 12, 42, 3]), can([3, 33, 39, 42, 12, 43, 1]), can([3, 33, 42, 42, 12, 43, 3]),
                   can([3, 33, 51, 85, 12, 42, 1])]
             f += text(54, 15, t["yes"]) + text(42, 52, "HAND") + text(54, 49, t["pause"]) + text(54, 97, t["no"])
+        elif self.mode == "notice":   # at login until Esc, as captured 2026-11-14 (any language: unknown screen)
+            f += [can([3, 33, 0, 0, 63, 127, 1]), can([3, 33, 0, 0, 12, 127, 1])]
+            f += text(3, 43, "MELDING") + text(22, 1, "Route is niet volgens\rspecificaties!!\r-minder betrouwbaar\r-zie routeanalyse\r-zie handleiding")
         elif self.mode == "question":
             f += text(3, 28, t["menu"], 1) + text(14, 4, t["question"])
             f += text(54, 15, t["yes"]) + text(54, 97, t["no"])
@@ -304,6 +307,8 @@ class FakeRobot:
                 self.mode = "menu"
             if k != "back":
                 return
+        elif self.mode == "notice" and k == "back":
+            self.mode = "home"
         elif self.mode == "question" and k in ("soft1", "soft3"):
             self.answer = "ja" if k == "soft1" else "nee"
             self.mode = "driving"

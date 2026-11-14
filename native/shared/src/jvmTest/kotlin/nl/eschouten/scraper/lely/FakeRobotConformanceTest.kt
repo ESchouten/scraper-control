@@ -85,5 +85,7 @@ class FakeRobotConformanceTest {
     for (k in listOf(RobotKey.Enter, RobotKey.Enter, RobotKey.Soft1, RobotKey.Soft1, RobotKey.Soft2, RobotKey.Soft3, RobotKey.Back, RobotKey.Down, RobotKey.Back, RobotKey.Back, RobotKey.Down, RobotKey.Up, RobotKey.Up, RobotKey.Up, RobotKey.Enter)) it.press(k)
   }
 
+  @Test fun noticeAtLogin() = check(planning = true, mode = "notice") { it.startRoute('B', dryRun = true) }
+
   @Test fun english() = check(planning = true, mode = "home", lang = "en") { it.startRoute('A', dryRun = true) }
 }

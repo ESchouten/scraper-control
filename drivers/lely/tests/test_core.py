@@ -169,6 +169,12 @@ case("robot left in manual control: hold left switches planning on", {"planning"
      lambda r, e: r.mode == "home" and r.planning and "RESULT ok" in e)
 case("robot left in manual control: routes read", {"planning": False, "mode": "manual"}, ("routes",),
      lambda r, e: r.mode == "home" and "ROUTES A=" in e and "RESULT ok" in e)
+case("notice at login (route analysis): one Esc, then home and the route starts", {"planning": True, "mode": "notice"}, ("route", "C"),
+     lambda r, e: r.pressed[0] == "back" and r.mode == "driving" and r.answer == "ja" and "RESULT ok" in e)
+case("notice at login: status read after one Esc", {"planning": True, "mode": "notice"},
+     ok=lambda r, e: r.pressed == ["back"] and "STATUS planning=1" in e)
+case("no Esc on a question at login", {"planning": False, "mode": "question"}, ok=lambda r, e: "back" not in r.pressed)
+case("no Esc on the stop question at login", {"mode": "abort"}, ok=lambda r, e: r.pressed == [])
 case("route from the main menu: started", {"planning": False, "mode": "mainmenu", "slow": True}, ("route", "A"),
      lambda r, e: r.mode == "driving" and r.sel == 0 and "RESULT ok" in e)
 # Leaving: the robot as found (home screen, planning as at connect), except on purpose.

@@ -26,7 +26,7 @@ private val ROUTE_PARTS = listOf("1  -  -", "2  3  -", "1  2  3", "4  -  -")
 
 class FakeRobotOptions(
   val planning: Boolean = true,
-  /** home, menu, mainmenu, manual, driving, question, abort */
+  /** home, menu, mainmenu, manual, driving, question, abort, notice */
   val mode: String = "home",
   val lang: String = "nl",
   /** Delay before each answer, so progress is visible like on the real robot. */
@@ -212,6 +212,11 @@ class FakeRobotLink(
         f += cr(3, 33, 51, 0, 12, 42, 3); f += cr(3, 33, 39, 42, 12, 43, 1); f += cr(3, 33, 42, 42, 12, 43, 3); f += cr(3, 33, 51, 85, 12, 42, 1)
         f += text(54, 15, t.yes) + text(42, 52, "HAND") + text(54, 49, t.pause) + text(54, 97, t.no)
       }
+      // at login until Esc, as captured 2026-11-14 (any language: an unknown screen)
+      "notice" -> {
+        f += cr(3, 33, 0, 0, 63, 127, 1); f += cr(3, 33, 0, 0, 12, 127, 1)
+        f += text(3, 43, "MELDING") + text(22, 1, "Route is niet volgens\rspecificaties!!\r-minder betrouwbaar\r-zie routeanalyse\r-zie handleiding")
+      }
       "question" -> f += text(3, 28, t.menu, 1) + text(14, 4, t.question) + text(54, 15, t.yes) + text(54, 97, t.no)
       else -> {
         f += text(3, 20, t.drive.first, 1) + text(14, 4, t.drive.second)
@@ -283,6 +288,7 @@ class FakeRobotLink(
         }
         if (k != "back") return
       }
+      "notice" -> if (k == "back") mode = "home"
       "question" -> if (k == "soft1" || k == "soft3") {
         log.answer = if (k == "soft1") "ja" else "nee"
         mode = "driving"

@@ -186,6 +186,17 @@ Result Robot::connect() {
   if (!ok) return fail(Result::NoScreen, tr("geen scherm ontvangen", "no screen received"));
   auto home = [](const Screen& s) { return s.isHome(); };
   settle(home);
+  // A notice at login ("MELDING: route is niet volgens specificaties", 2026-11-14): Esc until
+  // a known screen, as Erik does on the panel. Never on a driving screen or one that asks
+  // something: there Esc could stop the route or answer.
+  auto notice = [](const Screen& s) {
+    return !s.lines().empty() && !s.isHome() && !s.isRouteMenu() && !s.isMainMenu() && !s.isManual() &&
+           !s.isDriving() && !s.isQuestion() && !s.isStopQuestion();
+  };
+  for (int i = 0; i < 3 && notice(screen); i++) {
+    say(tr("melding weggedrukt (Esc)", "notice dismissed (Esc)"));
+    tap(Key::Back, [notice](const Screen& s) { return !notice(s); });
+  }
   if (!screen.isHome() && !screen.isRouteMenu()) {
     waitUntil(home, 1000);
     settle(home);
