@@ -150,6 +150,8 @@ case("slow robot: route C, planning off -> Nee", {"planning": False, "slow": Tru
 case("slow robot: hold left, planning on -> off", {"planning": True, "slow": True}, ("toggle",),
      lambda r, e: r.mode == "home" and not r.planning and "RESULT ok" in e)
 case("slow robot: status complete", {"slow": True}, ok=lambda r, e: "planning=1 next=21:00:00" in e and "batt=13500" in e)
+case("slow robot: the splash is skipped with Esc, nothing else pressed", {"slow": True}, ok=lambda r, e: r.splash_skipped and r.pressed == []
+     and "STATUS planning=1" in e and r.took < 2.5)
 # Manual drive (HANDBEDIENING): planning off, Enter, Enter, Ja; Start held = drive.
 for slow in (False, True):
     case(f"manual{' (slow)' if slow else ''}: L toggled, drove, back home, planning on again; state read from the screen",
@@ -162,6 +164,8 @@ case("manual with planning off: stays off afterwards", {"planning": False}, ("ma
      lambda r, e: r.mode == "home" and not r.planning and "RESULT ok" in e)
 case("manual: disconnect while driving still sends up", {"planning": False}, ("manual-drop",),
      lambda r, e: r.drive_events[0] == 0 and r.drive_events[-1] == 7)
+case("stop question, then manual control: Nee, then manual control, planning stays off", {"mode": "abort", "planning": True}, ("manual",),
+     lambda r, e: r.pressed[0] == "soft3" and "INMANUAL 1" in e and r.mode == "home" and not r.planning and "RESULT ok" in e)
 case("manual while driving a route: nothing pressed", {"mode": "driving"}, ("manual",), lambda r, e: r.pressed == [] and "RESULT robot is bezig" in e)
 case("robot left in manual control: route started from there", {"planning": False, "mode": "manual"}, ("route", "A"),
      lambda r, e: r.mode == "driving" and r.sel == 0 and r.answer == "nee" and "RESULT ok" in e)

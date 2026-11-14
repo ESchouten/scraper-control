@@ -129,6 +129,9 @@ class FakeRobot:
         # after: it also ignores keys for that many seconds after the last piece.
         self.slow, self.after, self._busy_until, self._lock = slow, after, 0.0, threading.Lock()
         self._live = False
+        # slow: the first screen comes after the splash image (about a second, seen
+        # 2026-11-14), which Esc ends at once (splash_skipped)
+        self._splash, self.splash_skipped = slow, False
 
     def _live_values(self):
         # The real home screen (captures/, 2026-11-05) rewrites the battery voltage about every
@@ -201,12 +204,19 @@ class FakeRobot:
         if not self.slow:
             self._send(*f)
             return
+        splash_end = 0.0
+        if self._splash:
+            self._send(can([3, 1]), can([3, 36, 0, 0, 10]))
+            splash_end = time.monotonic() + 1.0
         self._busy_until = time.monotonic() + 60
         if not self._live:
             self._live = True
             threading.Thread(target=self._live_values, daemon=True).start()
 
         def pieces():                 # four pieces, 0.12 s apart; done drawing with the last one
+            while self._splash and time.monotonic() < splash_end:
+                time.sleep(0.01)
+            self._splash = False
             n = (len(f) + 3) // 4
             for i in range(0, len(f), n):
                 time.sleep(0.12)
@@ -262,6 +272,9 @@ class FakeRobot:
         if ln != 4 or ev != 0 or key not in KEY:
             return
         k = KEY[key]
+        if self._splash and k == "back":
+            self._splash, self.splash_skipped = False, True
+            return
         if self.slow and time.monotonic() < self._busy_until:
             self.ignored.append(k)
             return

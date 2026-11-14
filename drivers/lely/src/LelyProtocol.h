@@ -95,6 +95,7 @@ class Screen {
   // After Start/Stop while driving (real robot 2026-11-11): "ROUTE GESTOPT / Route stop gezet:
   // route afmaken?" with three answers on the bottom row: Ja (soft1) / Pauze (soft2) / Nee (soft3).
   bool isStopQuestion() const;
+  bool isSplash() const;      // the full-screen image (10) shown for a second at every connect
   bool isManual() const;      // HANDBEDIENING: L/R boxes and the direction image at the bottom
   bool isDriving() const;     // ROUTE->TIJDPAD: title with "->" on top, no clock, label rows at x = 4
   uint32_t version() const { return version_; }   // counts redraws (not the clock and battery)

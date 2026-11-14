@@ -329,6 +329,11 @@ bool Screen::isQuestion() const {
   return left == 1 && right == 1 && mid == 0;
 }
 
+bool Screen::isSplash() const {   // seen 2026-11-14: op 1, image 10 at 0,0, nothing else
+  auto it = images_.find({0, 0});
+  return it != images_.end() && it->second == 10 && items_.empty();
+}
+
 bool Screen::isStopQuestion() const {
   if (isHome() || isRouteMenu() || isManual()) return false;
   return rowItems(52, 56, 0, 40) == 1 && rowItems(52, 56, 41, 84) == 1 && rowItems(52, 56, 85, 127) == 1;

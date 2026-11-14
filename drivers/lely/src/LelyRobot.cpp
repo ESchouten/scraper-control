@@ -180,9 +180,18 @@ Result Robot::connect() {
   // A robot whose image set we lack sends it first (about 75 s over BLE, longer on a slow
   // link): wait 90 s, and on while it is still sending, up to 4 minutes.
   auto shown = [](const Screen& s) { return s.isHome() || s.isRouteMenu() || !s.lines().empty(); };
+  // First the robot shows its splash image for about a second: Esc skips it (measured at the
+  // barn 2026-11-14: the splash takes the Esc, also with planning OFF; home 0.9 s sooner).
+  auto first = [shown](const Screen& s) { return s.isSplash() || shown(s); };
   uint32_t start = lastRx_ = t_.now();
-  bool ok = waitUntil(shown, 90000);
-  while (!ok && t_.linkUp() && t_.now() - lastRx_ < 5000 && t_.now() - start < 240000) ok = waitUntil(shown, 5000);
+  bool ok = waitUntil(first, 90000);
+  while (!ok && t_.linkUp() && t_.now() - lastRx_ < 5000 && t_.now() - start < 240000) ok = waitUntil(first, 5000);
+  if (ok && screen.isSplash()) {
+    t_.write(key(0, Key::Back));
+    t_.pump(80);
+    t_.write(key(7, Key::Back));
+    ok = waitUntil(shown, 10000);
+  }
   if (!ok) return fail(Result::NoScreen, tr("geen scherm ontvangen", "no screen received"));
   auto home = [](const Screen& s) { return s.isHome(); };
   settle(home);
@@ -400,6 +409,12 @@ Result Robot::startRoute(char letter, bool dryRun) {
 bool Robot::inManual() const { return screen.isManual(); }
 
 Result Robot::enterManual() {
+  // Manual control chosen on "route afmaken?" (to drive the robot back to its charger, Erik
+  // 2026-11-14): the route is over, so Nee first. The planning stays off, as after any Nee.
+  if (screen.isStopQuestion()) {
+    Result r = answerStop(false);
+    if (r != Result::Ok) return r;
+  }
   Result r = goHome();
   if (r != Result::Ok) return r;
   manualWasOn_ = screen.planning() == 1;
