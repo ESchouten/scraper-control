@@ -1,0 +1,10 @@
+403 http://localhost:8080/
+[error] Failed to load resource: the server responded with a status of 403 (Forbidden)
+-- 1-pin
+-- 2-wrong-pin
+-- 3-home
+429 http://localhost:8080/
+[error] Failed to load resource: the server responded with a status of 429 (Too Many Requests)
+-- 4-remembered
+-- 5-route-sheet
+-- 6-dry-run
