@@ -17,6 +17,8 @@ name: release
 #   ANDROID_KEYSTORE             the app's signing keystore, base64 (same key for every version,
 #                                or Android refuses to install an update over the old app)
 #   ANDROID_KEYSTORE_PASSWORD    its password (alias "scraper-control")
+#   APT_SIGNING_KEY              OpenPGP private key (armored, no passphrase) that signs the apt
+#                                repository on GitHub Pages; its public half is published there
 on:
   workflow_dispatch:
 
@@ -187,10 +189,11 @@ jobs:
           path: out/
           if-no-files-found: error
 
-  # The browser installer for the buttons (docs/install) on GitHub Pages, with this release's
-  # first-install image. Pages must be set to "GitHub Actions" once (Settings > Pages).
+  # GitHub Pages (set to "GitHub Actions" once, Settings > Pages): the browser installer for the
+  # buttons (docs/install) with this release's first-install image, and an apt repository with
+  # this release's .deb (apt/, flat, signed), so `apt upgrade` brings new versions.
   installer:
-    needs: [version, firmware]
+    needs: [version, firmware, desktop]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -206,6 +209,10 @@ jobs:
         with:
           name: firmware
           path: fw
+      - uses: actions/download-artifact@v8
+        with:
+          name: desktop-ubuntu-latest
+          path: deb
       - name: Page, manifest and image
         run: |
           mkdir site
@@ -215,6 +222,22 @@ jobs:
           {"name": "Scraper Control buttons", "version": "$VERSION", "new_install_prompt_erase": true,
            "builds": [{"chipFamily": "ESP32", "parts": [{"path": "scraper-control-m5stack-core-full.bin", "offset": 0}]}]}
           JSON
+      - name: Apt repository
+        env:
+          APT_SIGNING_KEY: ${{ secrets.APT_SIGNING_KEY }}
+        run: |
+          test -n "$APT_SIGNING_KEY" || { echo "secret APT_SIGNING_KEY is missing"; exit 1; }
+          echo "$APT_SIGNING_KEY" | gpg --batch --import
+          mkdir site/apt
+          cp deb/*.deb site/apt/
+          cd site/apt
+          apt-ftparchive packages . > Packages
+          gzip -k9 Packages
+          apt-ftparchive -o APT::FTPArchive::Release::Origin="Scraper Control" \
+            -o APT::FTPArchive::Release::Suite=stable release . > ../Release   # not listing itself
+          mv ../Release .
+          gpg --batch --yes --clearsign -o InRelease Release
+          gpg --armor --export > scraper-control.asc
       - uses: actions/upload-pages-artifact@v5
         with:
           path: site
